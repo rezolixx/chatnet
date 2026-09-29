@@ -1,0 +1,30 @@
+import Image from "next/image";
+import Link from "next/link";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { ActionLink } from "@/components/ui/ActionLink";
+import { Icon } from "@/components/ui/Icons";
+import { RoomCard } from "@/components/rooms/RoomCard";
+import { GameCard } from "@/components/games/GameCard";
+import { games } from "@/lib/games";
+import { joinHref } from "@/lib/site";
+import type { PublicRoom } from "@/lib/api/types";
+
+const benefits = [
+  { icon: "chat" as const, title: "En direct, tout simplement", description: "Entrez dans la conversation sans perdre le fil." },
+  { icon: "globe" as const, title: "À travers la francophonie", description: "Des échanges en français, de partout dans le monde." },
+  { icon: "heart" as const, title: "Des intérêts en commun", description: "Trouvez le bon salon pour parler de ce qui vous plaît." },
+  { icon: "device" as const, title: "Où que vous soyez", description: "Une expérience pensée pour le mobile et l’ordinateur." },
+  { icon: "users" as const, title: "De vraies rencontres", description: "La place pour faire connaissance, à votre rythme." },
+  { icon: "shield" as const, title: "Le respect d’abord", description: "Un cadre de convivialité pour mieux échanger." },
+];
+
+export function HomeContent({ rooms }: { rooms: PublicRoom[] }) {
+  return <>
+    <section className="section rooms-preview" id="salons"><div className="container"><SectionHeading eyebrow="Les salons" title="Découvrir les salons." description="Explorez les salons de discussion enregistrés et trouvez un sujet qui vous parle." action={<Link href="/salons" className="text-link">Voir tous les salons <Icon name="arrow" size={17} /></Link>} />{rooms.length ? <div className="room-grid">{rooms.map((room) => <RoomCard key={room.name} room={room} />)}</div> : <p className="data-note">Les salons seront bientôt disponibles.</p>}</div></section>
+    <section className="section why-section"><div className="container"><SectionHeading eyebrow="Pourquoi Chatnet" title="Tout part d’un bon échange." description="Une expérience simple, ouverte et pensée pour le plaisir de discuter." /><div className="benefits-grid">{benefits.map((item) => <div className="benefit" key={item.title}><div className="benefit-icon"><Icon name={item.icon} size={24} /></div><h3>{item.title}</h3><p>{item.description}</p></div>)}</div></div></section>
+    <section className="section community-section"><div className="container community-grid"><div className="community-art"><div className="community-art-header"><span>La communauté</span><Icon name="spark" size={20} /></div><div className="community-circle"><Image src="/brand/chatnet-cn-decorative.svg" alt="Monogramme Chatnet" width={185} height={125} sizes="(max-width: 768px) 128px, 185px" /></div><span className="community-chip chip-one">France</span><span className="community-chip chip-two">Québec</span><span className="community-chip chip-three">Maghreb</span><span className="community-chip chip-four">Belgique</span><span className="community-art-caption">Un même langage. Mille conversations.</span></div><div className="community-copy"><span className="eyebrow">La communauté</span><h2>Plus qu’un chat, <em>une communauté.</em></h2><p>Une conversation peut commencer par un sujet commun et devenir une belle rencontre. Chatnet rassemble les francophones autour de ce qu’ils aiment partager.</p><div className="community-points"><span><Icon name="chat" size={18} /> Des échanges spontanés</span><span><Icon name="globe" size={18} /> Des horizons francophones variés</span><span><Icon name="heart" size={18} /> Une place pour chacun</span></div><Link href="/communaute" className="text-link">Découvrir la communauté <Icon name="arrow" size={17} /></Link></div></div></section>
+    <section className="section games-section"><div className="container"><SectionHeading eyebrow="Bientôt sur Chatnet" title="Jouez avec la communauté." description="Le jeu donne une autre raison de se retrouver. Découvrez les espaces imaginés pour les prochains défis." action={<Link href="/jeux" className="text-link">Découvrir les jeux <Icon name="arrow" size={17} /></Link>} /><div className="games-home-grid"><div className="games-feature"><span className="games-feature-top">À venir <Icon name="spark" size={20} /></span><div><h3>Des défis à partager.</h3><p>Des jeux, des rendez-vous et des classements communautaires prendront place ici au fil de leur lancement.</p><Link href="/jeux" className="text-link light-link">Explorer le programme <Icon name="arrow" size={17} /></Link></div><div className="games-decoration" aria-hidden="true">CN</div></div><div className="games-mini-list">{games.slice(0, 2).map((game) => <GameCard key={game.title} game={game} />)}</div></div></div></section>
+    <section className="values-strip"><div className="container values-inner"><div className="values-icon"><Icon name="shield" size={26} /></div><div><h2>Un espace où l’on se parle avec respect.</h2><p>Convivialité, attention aux autres et modération font partie de l’expérience que nous voulons construire ensemble.</p></div><Link href="/communaute#valeurs" className="text-link">Nos valeurs <Icon name="arrow" size={17} /></Link></div></section>
+    <section className="section closing-section"><div className="container closing-card"><div className="closing-copy"><span className="eyebrow">On se retrouve ?</span><h2>Votre prochaine conversation vous attend.</h2><p>Un salon, un sujet, une rencontre : il suffit de commencer.</p><ActionLink href={joinHref} className="button button-white button-large">Entrer sur Chatnet <Icon name="arrow" size={18} /></ActionLink></div><Image src="/brand/chatnet-cn-decorative.svg" alt="" width={385} height={259} sizes="(max-width: 768px) 200px, 385px" className="closing-monogram" /></div></section>
+  </>;
+}
