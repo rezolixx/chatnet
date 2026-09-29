@@ -2,7 +2,7 @@ export const site = {
   name: "Chatnet",
   url: "https://chatnet.fr",
   description:
-    "Chatnet réunit les francophones autour de salons de discussion, de rencontres et de centres d’intérêt partagés.",
+    "Chatnet est un chat en ligne francophone pour découvrir des salons de discussion, rencontrer la communauté et échanger autour d’intérêts partagés.",
   nav: [
     { label: "Accueil", href: "/" },
     { label: "Salons", href: "/salons" },
