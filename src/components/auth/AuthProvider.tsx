@@ -8,7 +8,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (login: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: (invalidate?: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -18,7 +18,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const authVersion = useRef(0);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (invalidate = false) => {
+    if (invalidate) {
+      authVersion.current += 1;
+      setUser(null);
+    }
     const version = authVersion.current;
     try {
       const response = await fetch("/api/auth/me", { cache: "no-store" });
