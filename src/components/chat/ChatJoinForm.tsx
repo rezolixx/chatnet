@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/ui/Icons";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { AuthenticatedChatCard } from "./AuthenticatedChatCard";
 import { buildChatUrl, ORIGIN_TICKET_URL, type ChatJoinDetails } from "@/lib/chat";
 
 type Field = "nick" | "age" | "sexe" | "ville";
@@ -24,6 +26,13 @@ function validate(details: { nick: string; age: string; sexe: string; ville: str
 }
 
 export function ChatJoinForm() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="chat-join-card member-chat-loading" id="rejoindre" role="status" aria-label="Vérification de la session"><span className="member-chat-skeleton avatar" /><span className="member-chat-skeleton title" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton button" /></div>;
+  if (user) return <AuthenticatedChatCard key={user.nickname} nickname={user.nickname} />;
+  return <GuestChatJoinForm />;
+}
+
+function GuestChatJoinForm() {
   const [nick, setNick] = useState("");
   const [age, setAge] = useState("");
   const [sexe, setSexe] = useState<"M" | "F" | "">("");

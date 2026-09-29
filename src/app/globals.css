@@ -140,6 +140,23 @@ img { max-width: 100%; }
 .chat-join-error { margin: 0; padding: 10px 12px; border: 1px solid #efc3bf; border-radius: 8px; background: #fff4f3; color: #9d2720; font-size: 12px; line-height: 1.5; }
 .chat-join-submit { width: 100%; min-height: 50px; margin-top: 3px; font-size: 14px; }
 .chat-join-submit:disabled { opacity: .72; cursor: wait; transform: none; }
+.member-chat-card { display: grid; gap: 20px; }
+.member-chat-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.member-chat-identity .member-avatar { display: grid; place-items: center; flex: 0 0 auto; width: 60px; height: 60px; overflow: hidden; border-radius: 50%; background: var(--cyan-light); color: var(--accent-text); font-weight: 800; font-size: 24px; }
+.member-chat-identity .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.member-chat-identity h2 { margin: 4px 0 0; font-size: 23px; overflow-wrap: anywhere; }
+.member-chat-details { display: grid; gap: 0; margin: 0; border: 1px solid var(--border); border-radius: 10px; }
+.member-chat-details div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 14px; font-size: 13px; }
+.member-chat-details div + div { border-top: 1px solid var(--border); }
+.member-chat-details dt { color: var(--muted); }
+.member-chat-details dd { margin: 0; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
+.member-chat-card .chat-join-error { margin-top: 0; }
+.member-chat-loading { display: grid; gap: 18px; align-content: center; min-height: 305px; }
+.member-chat-skeleton { display: block; height: 17px; border-radius: 7px; background: var(--border); opacity: .75; }
+.member-chat-skeleton.avatar { width: 60px; height: 60px; border-radius: 50%; }
+.member-chat-skeleton.title { width: 65%; height: 26px; }
+.member-chat-skeleton.line { width: 100%; }
+.member-chat-skeleton.button { width: 100%; height: 50px; margin-top: 12px; }
 :root[data-theme="dark"] .field-error { color: #ffb6ae; }
 :root[data-theme="dark"] .chat-join-error { border-color: #7b383c; background: #3b2029; color: #ffd0c9; }
 .status-dot { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; background: var(--cyan); border-radius: 50%; }
