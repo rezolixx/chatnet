@@ -9,7 +9,7 @@ import { Icon } from "@/components/ui/Icons";
 import { joinHref } from "@/lib/site";
 import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = pageMetadata("Communauté francophone", "Une communauté de conversation ouverte aux francophones de tous horizons. Découvrez l’esprit Chatnet.", "/communaute");
+export const metadata: Metadata = pageMetadata("Communauté francophone", "Découvrez la communauté Chatnet, ses membres en ligne et un espace de conversation ouvert aux francophones.", "/communaute");
 
 export default async function CommunityPage({ searchParams }: { searchParams: Promise<{ page?: string | string[] }> }) {
   const rawPage = (await searchParams).page;
