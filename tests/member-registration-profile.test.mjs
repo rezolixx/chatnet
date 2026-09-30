@@ -82,22 +82,41 @@ test("own profile exposes only verified account fields, using email from /api/me
   assert.equal(projectOwnProfile({ ...me, avatar: "javascript:alert(1)" }, member, "Member_01")?.avatar, null);
 });
 
-test("BFF route guards and no-session registration are explicit", () => {
+test("registration BFF keeps the session handshake and safe upstream diagnostics", () => {
   const register = source("app/api/auth/register/route.ts");
   const profile = source("app/api/auth/profile/route.ts");
   assert.match(register, /hasTrustedOrigin\(request\)/);
   assert.match(register, /maxBytes = 4096/);
   assert.match(register, /size > maxBytes/);
   assert.match(register, /csrfCookies\(\)/);
+  assert.match(register, /xsrfHeader\(cookies\)/);
+  assert.match(register, /upstreamCookieHeader\(cookies\)/);
   assert.match(register, /"\/api\/register"/);
   assert.match(register, /body: JSON\.stringify\(input\)/);
   assert.match(register, /registrationFailure\(upstream\.status, body\)/);
-  assert.doesNotMatch(register, /setBridgeCookies|console\.|localStorage|sessionStorage/);
+  assert.match(register, /upstream\.status !== 201/);
+  assert.match(register, /X-Chatnet-Register-Upstream-Status/);
+  assert.match(register, /String\(upstreamStatus\)/);
+  assert.match(register, /responseHeaders\(upstream\.status\)/);
+  assert.doesNotMatch(register, /setBridgeCookies|console\.|logger\.|localStorage|sessionStorage/);
   assert.match(profile, /laravelMe\(cookies\)/);
   assert.match(profile, /encodeURIComponent\(user\.nickname\)/);
   assert.match(profile, /projectOwnProfile\(me, await member\.json\(\), user\.nickname\)/);
   assert.match(profile, /clearBridgeCookies\(response\)/);
   assert.doesNotMatch(profile, /export async function PUT/);
+});
+
+test("guest navbar exposes login, signup and chat while member controls remain separate", () => {
+  const navbar = source("components/layout/Navbar.tsx");
+  const css = source("app/globals.css");
+  assert.match(navbar, /: user\s*\? <div className="nav-account">/);
+  assert.match(navbar, /: <div className="nav-guest"><Link href="\/connexion"/);
+  assert.match(navbar, /<Link href="\/inscription" className="button button-outline nav-signup"/);
+  assert.match(navbar, /<ActionLink href=\{joinHref\} className="button button-primary nav-join">Rejoindre Chatnet/);
+  assert.match(navbar, /<div className="nav-auth-mobile">\{accountAction\}<\/div>/);
+  assert.match(css, /\.nav-auth-mobile \.nav-guest \{ display: grid/);
+  assert.match(source("components/auth/LoginForm.tsx"), /href="\/inscription">Créer un compte/);
+  assert.match(source("components/auth/RegisterForm.tsx"), /href="\/connexion">Se connecter/);
 });
 
 test("private pages stay outside sitemap and IndexNow paths", () => {

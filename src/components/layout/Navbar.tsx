@@ -29,7 +29,7 @@ export function Navbar() {
     ? <span className="nav-auth-placeholder" aria-label="Vérification de la session" />
     : user
       ? <div className="nav-account"><Link href="/profil" className="nav-account-person" onClick={() => setOpen(false)} aria-current={pathname === "/profil" ? "page" : undefined}><MemberAvatar member={user} /><span>{user.nickname}</span></Link><button type="button" className="nav-logout" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Déconnexion…" : "Se déconnecter"}</button></div>
-      : <Link href="/connexion" className="nav-login">Se connecter</Link>;
+      : <div className="nav-guest"><Link href="/connexion" className="nav-login" onClick={() => setOpen(false)} aria-current={pathname === "/connexion" ? "page" : undefined}>Se connecter</Link><Link href="/inscription" className="button button-outline nav-signup" onClick={() => setOpen(false)} aria-current={pathname === "/inscription" ? "page" : undefined}>S&apos;inscrire</Link></div>;
   return (
     <header className="site-header">
       <div className="container nav-inner">
