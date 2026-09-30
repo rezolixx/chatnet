@@ -9,6 +9,7 @@ type AuthContextValue = {
   login: (login: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: (invalidate?: boolean) => Promise<void>;
+  updateAvatar: (nickname: string, avatar: string) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -75,6 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  const updateAvatar = useCallback((nickname: string, avatar: string) => {
+    authVersion.current += 1;
+    setUser((current) => current?.nickname === nickname ? { ...current, avatar } : current);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
@@ -82,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { throw new Error("Déconnexion temporairement indisponible."); }
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, updateAvatar }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
-import { MemberAvatar } from "@/components/community/MemberAvatar";
+import { AvatarEditor } from "./AvatarEditor";
 import type { OwnProfile } from "@/lib/auth/own-profile";
 
 function ProfileSkeleton() {
@@ -18,13 +18,14 @@ function display(value: string | null): string { return value || "Non renseigné
 export function ProfileContent() {
   const router = useRouter();
   const { user, loading, refreshUser } = useAuth();
+  const nickname = user?.nickname;
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { router.replace("/connexion"); return; }
+    if (!nickname) { router.replace("/connexion"); return; }
     const controller = new AbortController();
     fetch("/api/auth/profile", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -40,7 +41,7 @@ export function ProfileContent() {
       .catch(() => { if (!controller.signal.aborted) setError("Votre profil est temporairement indisponible."); })
       .finally(() => { if (!controller.signal.aborted) setFetching(false); });
     return () => controller.abort();
-  }, [loading, user, router, refreshUser]);
+  }, [loading, nickname, router, refreshUser]);
 
   if (loading || !user || fetching) return <ProfileSkeleton />;
   if (error || !profile) return <div className="profile-card" role="alert">{error || "Votre profil est temporairement indisponible."}</div>;
@@ -55,8 +56,7 @@ export function ProfileContent() {
     ["Membre depuis", profile.inscritDepuis],
   ];
   return <article className="profile-card">
-    <div className="profile-head"><MemberAvatar member={profile} /><div><span className="eyebrow">Membre Chatnet</span><h2>{profile.nickname}</h2></div></div>
+    <div className="profile-head"><AvatarEditor nickname={profile.nickname} avatar={profile.avatar} onUploaded={(avatar) => setProfile((current) => current?.nickname === profile.nickname ? { ...current, avatar } : current)} /><div><span className="eyebrow">Membre Chatnet</span><h2>{profile.nickname}</h2></div></div>
     <div className="profile-grid">{details.map(([label, value]) => <div className="profile-detail" key={label}><span>{label}</span><strong>{display(value)}</strong></div>)}</div>
-    <div className="profile-description"><h3>Description</h3><p>{display(profile.description)}</p></div>
   </article>;
 }
