@@ -8,8 +8,12 @@ export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
 const maxBytes = 4096;
 
-function error(status: number, code: string, message: string, errors?: Record<string, string>) {
-  return NextResponse.json({ code, message, ...(errors && Object.keys(errors).length ? { errors } : {}) }, { status, headers: noStore });
+function responseHeaders(upstreamStatus?: number) {
+  return upstreamStatus === undefined ? noStore : { ...noStore, "X-Chatnet-Register-Upstream-Status": String(upstreamStatus) };
+}
+
+function error(status: number, code: string, message: string, errors?: Record<string, string>, upstreamStatus?: number) {
+  return NextResponse.json({ code, message, ...(errors && Object.keys(errors).length ? { errors } : {}) }, { status, headers: responseHeaders(upstreamStatus) });
 }
 
 async function readLimitedJson(request: NextRequest): Promise<unknown> {
@@ -54,10 +58,10 @@ export async function POST(request: NextRequest) {
     if (upstream.status !== 201) {
       const body = upstream.status === 422 || upstream.status === 409 ? await upstream.json().catch(() => null) : null;
       const failure = registrationFailure(upstream.status, body);
-      return error(failure.status, failure.code, failure.message, failure.errors);
+      return error(failure.status, failure.code, failure.message, failure.errors, upstream.status);
     }
     // Laravel registration creates an account but does not establish an authenticated session.
-    return NextResponse.json({ success: true }, { status: 201, headers: noStore });
+    return NextResponse.json({ success: true }, { status: 201, headers: responseHeaders(upstream.status) });
   } catch {
     return error(503, "UNAVAILABLE", "Inscription temporairement indisponible.");
   }

@@ -77,6 +77,8 @@ img { max-width: 100%; }
 .nav-actions { gap: 13px; margin-left: 20px; }
 .nav-login { font-size: 13px; font-weight: 700; white-space: nowrap; }
 .nav-login:hover { color: var(--accent-text); }
+.nav-guest { display: flex; align-items: center; gap: 12px; }
+.nav-signup { min-height: 38px; padding: 8px 13px; }
 .icon-button { width: 39px; height: 39px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--foreground); }
 .icon-button:hover { border-color: var(--accent-text); }
 .theme-icon-sun { display: none; }
@@ -375,11 +377,13 @@ img { max-width: 100%; }
 .auth-submit { width: 100%; margin-top: 3px; }
 @media (max-width: 920px) {
   .nav-auth-desktop { display: none; }
-  .nav-auth-mobile { display: block; }
-  .nav-auth-mobile .nav-login { display: inline-flex; align-items: center; min-height: 46px; padding: 11px 18px; border: 1px solid var(--border); border-radius: 10px; }
+  .nav-auth-mobile { display: block; width: 100%; }
+  .nav-auth-mobile .nav-guest { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nav-auth-mobile .nav-login { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 11px 18px; border: 1px solid var(--border); border-radius: 10px; }
+  .nav-auth-mobile .nav-signup { min-height: 46px; }
   .nav-auth-mobile .nav-account { justify-content: space-between; flex-wrap: wrap; min-height: 46px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; }
 }
-@media (max-width: 470px) { .auth-card { padding: 23px; } }
+@media (max-width: 470px) { .auth-card { padding: 23px; }.nav-auth-mobile .nav-guest { grid-template-columns: 1fr; } }
 
 .register-card { width: min(100%, 560px); }
 .auth-card .chat-join-field select { width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font: inherit; }
