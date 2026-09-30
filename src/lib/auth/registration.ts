@@ -1,3 +1,5 @@
+import { registrationCountrySet } from "./countries.ts";
+
 export type RegistrationInput = {
   nickname: string;
   email: string;
@@ -37,7 +39,7 @@ export function validateRegistration(value: unknown, confirmPassword?: string, n
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) errors.email = "Entrez une adresse e-mail valide.";
   if (!isAtLeast16(birthdate, now)) errors.birthdate = "Vous devez avoir au moins 16 ans.";
   if (gender !== "Homme" && gender !== "Femme") errors.gender = "Choisissez un genre.";
-  if (!pays || pays.length > 100) errors.pays = "Indiquez votre pays.";
+  if (!pays || pays.length > 100 || !registrationCountrySet.has(pays)) errors.pays = "Choisissez un pays dans la liste.";
   if (typeof password !== "string" || password.length < 6 || password.length > 1024) errors.password = "Utilisez au moins 6 caractères.";
   if (confirmPassword !== undefined && password !== confirmPassword) errors.confirmPassword = "Les mots de passe ne correspondent pas.";
   if (Object.keys(errors).length) return { errors };

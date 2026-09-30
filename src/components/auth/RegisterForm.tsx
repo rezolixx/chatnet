@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { registrationCountries } from "@/lib/auth/countries";
 import { validateRegistration, type RegistrationErrors, type RegistrationField } from "@/lib/auth/registration";
 
 type FormValues = { nickname: string; email: string; birthdate: string; gender: string; pays: string; password: string; confirmPassword: string };
@@ -11,10 +12,10 @@ const fields: { key: RegistrationField; label: string; type: string; autoComplet
   { key: "nickname", label: "Pseudo", type: "text", autoComplete: "username" },
   { key: "email", label: "E-mail", type: "email", autoComplete: "email" },
   { key: "birthdate", label: "Date de naissance", type: "date", autoComplete: "bday" },
-  { key: "pays", label: "Pays", type: "text", autoComplete: "country-name" },
   { key: "password", label: "Mot de passe", type: "password", autoComplete: "new-password" },
   { key: "confirmPassword", label: "Confirmation du mot de passe", type: "password", autoComplete: "new-password" },
 ];
+const sortedCountries = [...registrationCountries].sort((a, b) => a.localeCompare(b));
 
 export function RegisterForm() {
   const router = useRouter();
@@ -77,9 +78,17 @@ export function RegisterForm() {
         </select>
         {errors.gender && <span className="field-error" id="register-gender-error">{errors.gender}</span>}
       </div>
+      <div className="chat-join-field">
+        <label htmlFor="register-pays">Pays</label>
+        <select id="register-pays" name="pays" autoComplete="country-name" value={values.pays} onChange={(event) => change("pays", event.target.value)} aria-invalid={Boolean(errors.pays)} aria-describedby={errors.pays ? "register-pays-error" : undefined} required>
+          <option value="">Choisissez votre pays</option>
+          {sortedCountries.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        {errors.pays && <span className="field-error" id="register-pays-error">{errors.pays}</span>}
+      </div>
       {fields.slice(3).map(({ key, label, type, autoComplete }) => <div className="chat-join-field" key={key}>
         <label htmlFor={`register-${key}`}>{label}</label>
-        <input id={`register-${key}`} name={key} type={type} autoComplete={autoComplete} value={values[key]} onChange={(event) => change(key, event.target.value)} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `register-${key}-error` : undefined} required maxLength={key === "pays" ? 100 : undefined} />
+        <input id={`register-${key}`} name={key} type={type} autoComplete={autoComplete} value={values[key]} onChange={(event) => change(key, event.target.value)} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `register-${key}-error` : undefined} required />
         {errors[key] && <span className="field-error" id={`register-${key}-error`}>{errors[key]}</span>}
       </div>)}
       {formError && <p className="chat-join-error" role="alert">{formError}</p>}

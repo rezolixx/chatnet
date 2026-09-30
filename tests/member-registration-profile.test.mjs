@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { registrationCountries } from "../src/lib/auth/countries.ts";
 import { projectOwnProfile } from "../src/lib/auth/own-profile.ts";
 import { registrationFailure, upstreamRegistrationConflict, upstreamRegistrationErrors, validateRegistration } from "../src/lib/auth/registration.ts";
 import { indexablePaths } from "../src/lib/seo/indexable.ts";
@@ -14,6 +15,22 @@ test("registration forwards a validated allowlist and no confirmation or arbitra
   const result = validateRegistration({ ...valid, nickname: " Member_01 ", email: " member@example.com ", role: "admin", confirmPassword: "secret123" }, undefined, now);
   assert.deepEqual(result.errors, {});
   assert.deepEqual(result.input, valid);
+  assert.deepEqual(Object.keys(result.input), ["nickname", "email", "birthdate", "gender", "pays", "password"]);
+  assert.equal(result.input.pays, "France");
+  assert.equal(Object.hasOwn(result.input, "country"), false);
+});
+
+test("selected pays uses the canonical Discut labels within the Laravel limit", () => {
+  assert.equal(registrationCountries.length, 251);
+  assert.equal(new Set(registrationCountries).size, registrationCountries.length);
+  assert.ok(registrationCountries.every((name) => name.length <= 100));
+  assert.ok(registrationCountries.includes("France"));
+  assert.ok(registrationCountries.includes("Émirats arabes unis"));
+  assert.deepEqual(validateRegistration({ ...valid, pays: "Émirats arabes unis", country: "Other" }, undefined, now).input?.pays, "Émirats arabes unis");
+  assert.ok(validateRegistration({ ...valid, pays: "Invented Country" }, undefined, now).errors.pays);
+  const form = source("components/auth/RegisterForm.tsx");
+  assert.match(form, /<select id="register-pays" name="pays"/);
+  assert.match(form, /sortedCountries\.map\(\(name\) => <option key=\{name\} value=\{name\}>/);
 });
 
 test("registration preserves the Discut public rules and rejects malformed input", () => {
@@ -73,6 +90,7 @@ test("BFF route guards and no-session registration are explicit", () => {
   assert.match(register, /size > maxBytes/);
   assert.match(register, /csrfCookies\(\)/);
   assert.match(register, /"\/api\/register"/);
+  assert.match(register, /body: JSON\.stringify\(input\)/);
   assert.match(register, /registrationFailure\(upstream\.status, body\)/);
   assert.doesNotMatch(register, /setBridgeCookies|console\.|localStorage|sessionStorage/);
   assert.match(profile, /laravelMe\(cookies\)/);
