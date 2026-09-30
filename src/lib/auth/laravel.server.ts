@@ -17,7 +17,7 @@ export async function fetchLaravel(path: string, init: RequestInit = {}): Promis
     ...init,
     headers,
     cache: "no-store",
-    signal: AbortSignal.timeout(8000),
+    signal: init.signal ?? AbortSignal.timeout(8000),
   });
 }
 

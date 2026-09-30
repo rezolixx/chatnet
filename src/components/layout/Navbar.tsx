@@ -28,7 +28,7 @@ export function Navbar() {
   const accountAction = loading
     ? <span className="nav-auth-placeholder" aria-label="Vérification de la session" />
     : user
-      ? <div className="nav-account"><span className="nav-account-person"><MemberAvatar member={user} /><span>{user.nickname}</span></span><button type="button" className="nav-logout" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Déconnexion…" : "Se déconnecter"}</button></div>
+      ? <div className="nav-account"><Link href="/profil" className="nav-account-person" onClick={() => setOpen(false)} aria-current={pathname === "/profil" ? "page" : undefined}><MemberAvatar member={user} /><span>{user.nickname}</span></Link><button type="button" className="nav-logout" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Déconnexion…" : "Se déconnecter"}</button></div>
       : <Link href="/connexion" className="nav-login">Se connecter</Link>;
   return (
     <header className="site-header">
