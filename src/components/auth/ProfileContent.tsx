@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { AvatarEditor } from "./AvatarEditor";
+import { ProfileEditForm } from "./ProfileEditForm";
 import type { OwnProfile } from "@/lib/auth/own-profile";
 
 function ProfileSkeleton() {
@@ -22,6 +23,7 @@ export function ProfileContent() {
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(true);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -36,14 +38,14 @@ export function ProfileContent() {
         }
         if (!response.ok) throw new Error("Votre profil est temporairement indisponible.");
         const data: { profile: OwnProfile } = await response.json();
-        if (!controller.signal.aborted) setProfile(data.profile);
+        if (!controller.signal.aborted) { setProfile(data.profile); setError(""); setEditing(false); }
       })
-      .catch(() => { if (!controller.signal.aborted) setError("Votre profil est temporairement indisponible."); })
+      .catch(() => { if (!controller.signal.aborted) { setProfile(null); setError("Votre profil est temporairement indisponible."); } })
       .finally(() => { if (!controller.signal.aborted) setFetching(false); });
     return () => controller.abort();
   }, [loading, nickname, router, refreshUser]);
 
-  if (loading || !user || fetching) return <ProfileSkeleton />;
+  if (loading || !user || fetching || (profile && profile.nickname !== nickname)) return <ProfileSkeleton />;
   if (error || !profile) return <div className="profile-card" role="alert">{error || "Votre profil est temporairement indisponible."}</div>;
 
   const birthdate = profile.birthdate ? new Date(`${profile.birthdate}T00:00:00Z`) : null;
@@ -56,7 +58,8 @@ export function ProfileContent() {
     ["Membre depuis", profile.inscritDepuis],
   ];
   return <article className="profile-card">
-    <div className="profile-head"><AvatarEditor nickname={profile.nickname} avatar={profile.avatar} onUploaded={(avatar) => setProfile((current) => current?.nickname === profile.nickname ? { ...current, avatar } : current)} /><div><span className="eyebrow">Membre Chatnet</span><h2>{profile.nickname}</h2></div></div>
+    <div className="profile-head"><AvatarEditor nickname={profile.nickname} avatar={profile.avatar} onUploaded={(avatar) => setProfile((current) => current?.nickname === profile.nickname ? { ...current, avatar } : current)} /><div className="profile-head-copy"><span className="eyebrow">Membre Chatnet</span><h2>{profile.nickname}</h2><button type="button" className="button button-outline profile-edit-toggle" onClick={() => setEditing((current) => !current)}>{editing ? "Fermer" : "Modifier"}</button></div></div>
+    {editing && <ProfileEditForm profile={profile} onSaved={setProfile} onCancel={() => setEditing(false)} />}
     <div className="profile-grid">{details.map(([label, value]) => <div className="profile-detail" key={label}><span>{label}</span><strong>{display(value)}</strong></div>)}</div>
   </article>;
 }

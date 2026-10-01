@@ -405,6 +405,18 @@ img { max-width: 100%; }
 .profile-avatar-error { color: #a43838; }
 .profile-avatar-success { color: var(--accent-text); }
 .profile-head h2 { margin: 6px 0 0; font-size: 30px; overflow-wrap: anywhere; }
+.profile-head-copy { min-width: 0; }
+.profile-edit-toggle { margin-top: 13px; padding: 8px 13px; font-size: 12px; }
+.profile-edit-panel { display: grid; gap: 14px; margin-top: 23px; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.profile-edit-panel h3 { margin: 0; font-size: 18px; }
+.profile-edit-panel > p { margin: 0; color: var(--muted); font-size: 13px; }
+.profile-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.profile-edit-grid .chat-join-field { align-content: start; }
+.profile-edit-grid select { width: 100%; min-height: 46px; padding: 10px 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; }
+.profile-edit-grid select:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.profile-edit-grid select[aria-invalid="true"] { border-color: #d14a44; }
+.profile-edit-grid .button { justify-self: start; margin-top: 5px; font-size: 12px; }
+.profile-edit-close { justify-self: start; font-size: 12px; }
 .profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 25px; }
 .profile-detail { min-height: 75px; padding: 15px 17px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
 .profile-detail span, .profile-detail strong { display: block; }
@@ -415,4 +427,4 @@ img { max-width: 100%; }
 .profile-skeleton-line { width: 190px; height: 18px; margin-top: 20px; }
 .profile-skeleton-line.short { width: 120px; height: 12px; margin-top: 11px; }
 .profile-skeleton-panel { height: 75px; }
-@media (max-width: 600px) { .profile-card { padding: 22px; }.profile-head { flex-direction: column; text-align: center; }.profile-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .profile-card { padding: 22px; }.profile-head { flex-direction: column; text-align: center; }.profile-edit-grid, .profile-grid { grid-template-columns: 1fr; } }
