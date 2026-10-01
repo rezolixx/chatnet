@@ -206,6 +206,7 @@ img { max-width: 100%; }
 .member-preview-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .member-preview-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); font-size: 13px; font-weight: 700; }
 .member-preview-card > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.member-preview-card[href]:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 .member-avatar-mark { position: relative; flex: 0 0 auto; width: 42px; height: 42px; }
 .member-preview-card .member-avatar { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; overflow: hidden; border-radius: 50%; background: var(--cyan-light); color: var(--accent-text); }
 .member-preview-card .member-avatar img { width: 100%; height: 100%; object-fit: cover; }

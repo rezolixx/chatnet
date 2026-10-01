@@ -2,7 +2,10 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { apiBaseUrl, fetchApi, isRecord, logApiFailure } from "@/lib/api/client.server";
-import type { LaravelMemberPage, PublicMember, PublicOnlineMember, RawMember } from "@/lib/api/types";
+import type { LaravelMemberPage, PublicOnlineMember } from "@/lib/api/types";
+import { normalizeMember } from "./members";
+
+export { normalizeMember } from "./members";
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 const MEMBER_REVALIDATE_SECONDS = 15;
@@ -15,27 +18,6 @@ function isOnline(lastSeen: unknown, now: number): boolean {
   // Discut's dayjs.utc(last_seen_at) treats Laravel's timezone-less timestamps as UTC.
   const timestamp = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(lastSeen) ? lastSeen : `${lastSeen.replace(" ", "T")}Z`);
   return Number.isFinite(timestamp) && now - timestamp < ONLINE_THRESHOLD_MS;
-}
-
-function normalizeAvatar(value: unknown): string | null {
-  if (typeof value !== "string" || !value.trim()) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
-export function normalizeMember(value: unknown): PublicMember | null {
-  if (!isRecord(value)) return null;
-  const raw: RawMember = value;
-  if (typeof raw.nickname !== "string" || !raw.nickname.trim()) return null;
-
-  return {
-    nickname: raw.nickname.trim(),
-    avatar: normalizeAvatar(raw.avatar),
-  };
 }
 
 async function collectOnlineMembers(target: number): Promise<{ members: PublicOnlineMember[]; failed: boolean }> {
