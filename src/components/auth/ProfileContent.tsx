@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { AvatarEditor } from "./AvatarEditor";
 import { ProfileEditForm } from "./ProfileEditForm";
+import { PasswordChangeForm } from "./PasswordChangeForm";
 import type { OwnProfile } from "@/lib/auth/own-profile";
 
 function ProfileSkeleton() {
@@ -61,5 +62,6 @@ export function ProfileContent() {
     <div className="profile-head"><AvatarEditor nickname={profile.nickname} avatar={profile.avatar} onUploaded={(avatar) => setProfile((current) => current?.nickname === profile.nickname ? { ...current, avatar } : current)} /><div className="profile-head-copy"><span className="eyebrow">Membre Chatnet</span><h2>{profile.nickname}</h2><button type="button" className="button button-outline profile-edit-toggle" onClick={() => setEditing((current) => !current)}>{editing ? "Fermer" : "Modifier"}</button></div></div>
     {editing && <ProfileEditForm profile={profile} onSaved={setProfile} onCancel={() => setEditing(false)} />}
     <div className="profile-grid">{details.map(([label, value]) => <div className="profile-detail" key={label}><span>{label}</span><strong>{display(value)}</strong></div>)}</div>
+    <PasswordChangeForm key={profile.nickname} nickname={profile.nickname} />
   </article>;
 }
