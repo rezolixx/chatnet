@@ -7,6 +7,7 @@ import { validatePasswordInput } from "@/lib/auth/password";
 export function PasswordChangeForm({ nickname }: { nickname: string }) {
   const { refreshUser } = useAuth();
   const pending = useRef(false);
+  const [expanded, setExpanded] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +43,7 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
       }
       const result: { changed?: boolean; session?: string } = await response.json();
       if (result.changed !== true) throw new Error("Invalid response");
+      setExpanded(false);
       if (result.session === "expired") {
         // Reload the auth provider after Laravel expires the session, while keeping
         // the confirmed password outcome visible on a dedicated confirmation page.
@@ -61,14 +63,17 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
 
   return <section className="profile-edit-panel" aria-labelledby="password-change-heading">
     <h3 id="password-change-heading">Sécurité du compte</h3>
+    <button type="button" className="button button-outline profile-edit-close" aria-expanded={expanded} aria-controls="password-change-form" onClick={() => setExpanded((current) => !current)} disabled={submitting}>{expanded ? "Fermer" : "Modifier le mot de passe"}</button>
+    {expanded && <>
     <p>Choisissez un nouveau mot de passe d’au moins 6 caractères pour votre compte.</p>
-    <form onSubmit={submit} aria-busy={submitting}>
+    <form id="password-change-form" onSubmit={submit} aria-busy={submitting}>
       <div className="profile-edit-grid">
         <div className="chat-join-field"><label htmlFor="new-password">Nouveau mot de passe</label><input id="new-password" name="new_password" type="password" autoComplete="new-password" required minLength={6} maxLength={1024} value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} aria-describedby={error ? "password-change-error" : undefined} /></div>
         <div className="chat-join-field"><label htmlFor="confirm-new-password">Confirmer le nouveau mot de passe</label><input id="confirm-new-password" name="confirmation" type="password" autoComplete="new-password" required maxLength={1024} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={submitting} aria-describedby={error ? "password-change-error" : undefined} /></div>
         <button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Modification…" : "Modifier le mot de passe"}</button>
       </div>
     </form>
+    </>}
     {error && <p id="password-change-error" className="chat-join-error" role="alert">{error}</p>}
     {success && <p className="profile-avatar-success" role="status">{success}</p>}
   </section>;
