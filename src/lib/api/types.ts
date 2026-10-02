@@ -28,3 +28,6 @@ export type PublicRoom = {
   name: string;
   topic: string | null;
 };
+
+export type PublicRoomsResult = { status: "available"; rooms: PublicRoom[] } | { status: "unavailable" };
+export type PublicRoomResult = { status: "found"; room: PublicRoom } | { status: "not-found" } | { status: "unavailable" };

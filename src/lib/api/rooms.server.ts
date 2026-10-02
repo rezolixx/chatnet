@@ -1,12 +1,15 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { fetchApi, isRecord, logApiFailure } from "@/lib/api/client.server";
-import type { PublicRoom, RawChannel, RawChannelResponse } from "@/lib/api/types";
+import type { PublicRoom, PublicRoomResult, PublicRoomsResult, RawChannel } from "@/lib/api/types";
+import { normalizeRoomName, normalizeRoomRouteParam, sameRoomName } from "@/lib/rooms";
 
 export function normalizeRoom(value: unknown): PublicRoom | null {
   if (!isRecord(value)) return null;
   const raw: RawChannel = value;
-  if (typeof raw.channel !== "string" || !raw.channel.trim()) return null;
+  if (!normalizeRoomName(raw.channel) || typeof raw.channel !== "string") return null;
 
   return {
     name: raw.channel.trim(),
@@ -14,17 +17,26 @@ export function normalizeRoom(value: unknown): PublicRoom | null {
   };
 }
 
-export async function getPublicRooms(): Promise<PublicRoom[]> {
+export const getPublicRoomsResult = cache(async (): Promise<PublicRoomsResult> => {
   try {
     const response = await fetchApi("/api/channels");
     if (!Array.isArray(response)) throw new Error("Invalid channel list");
 
-    const channels: RawChannelResponse = response;
-    const rooms = channels.map(normalizeRoom).filter((room): room is PublicRoom => room !== null);
-    if (channels.length > 0 && rooms.length === 0) throw new Error("No valid channels in list");
-    return rooms;
+    const rooms = response.map(normalizeRoom);
+    if (rooms.some((room) => room === null)) throw new Error("Invalid channel in list");
+    return { status: "available", rooms: rooms as PublicRoom[] };
   } catch (error) {
     logApiFailure("channels", error);
-    return [];
+    return { status: "unavailable" };
   }
-}
+});
+
+export const getPublicRoom = cache(async (value: string): Promise<PublicRoomResult> => {
+  const name = normalizeRoomRouteParam(value);
+  if (!name) return { status: "not-found" };
+  const result = await getPublicRoomsResult();
+  if (result.status === "unavailable") return result;
+  const matches = result.rooms.filter((room) => sameRoomName(name, room.name));
+  if (matches.length > 1) return { status: "unavailable" };
+  return matches.length ? { status: "found", room: matches[0] } : { status: "not-found" };
+});
