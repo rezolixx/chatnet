@@ -17,6 +17,7 @@ export function Navbar() {
   const { user, loading, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const navigation = !loading && user ? [...site.nav, { href: "/assistance", label: "Assistance" }] : site.nav;
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -35,7 +36,7 @@ export function Navbar() {
       <div className="container nav-inner">
         <BrandLogo />
         <nav className="desktop-nav" aria-label="Navigation principale">
-          {site.nav.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "nav-link active" : "nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>)}
+          {navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "nav-link active" : "nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>)}
         </nav>
         <div className="nav-actions">
           <ThemeToggle />
@@ -46,7 +47,7 @@ export function Navbar() {
       </div>
       <nav id="mobile-navigation" className={`mobile-nav ${open ? "open" : ""}`} aria-label="Navigation mobile" inert={!open}>
         <div className="container mobile-nav-inner">
-          {site.nav.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "mobile-nav-link active" : "mobile-nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}<Icon name="chevron" size={18} /></Link>)}
+          {navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "mobile-nav-link active" : "mobile-nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}<Icon name="chevron" size={18} /></Link>)}
           <div className="mobile-nav-actions"><div className="nav-auth-mobile">{accountAction}</div><ActionLink href={joinHref} className="button button-primary">Rejoindre Chatnet</ActionLink></div>
         </div>
       </nav>

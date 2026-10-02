@@ -376,6 +376,10 @@ img { max-width: 100%; }
 .auth-card > p { margin: 0 0 24px; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .auth-card form { display: grid; gap: 17px; }
 .auth-submit { width: 100%; margin-top: 3px; }
+.assistance-card { width: min(100%, 620px); }
+.assistance-card textarea { width: 100%; min-width: 0; padding: 10px 13px; resize: vertical; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; }
+.assistance-card textarea:focus-visible { border-color: var(--accent-text); outline: 3px solid var(--cyan-light); outline-offset: 1px; }
+.assistance-card textarea[aria-invalid="true"] { border-color: #d14a44; }
 @media (max-width: 920px) {
   .nav-auth-desktop { display: none; }
   .nav-auth-mobile { display: block; width: 100%; }
