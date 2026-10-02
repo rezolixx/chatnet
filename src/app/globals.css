@@ -371,6 +371,29 @@ img { max-width: 100%; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
+/* Shared not-found experience */
+.not-found { min-height: calc(100svh - 78px); display: grid; place-items: center; padding: 56px 24px 72px; background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--cyan-light) 55%, transparent), transparent 65%), linear-gradient(180deg, var(--background), var(--surface)); }
+.not-found-content { width: min(100%, 840px); text-align: center; }
+.not-found-illustration { display: block; width: min(100%, 560px); height: auto; margin: 0 auto 25px; }
+.not-found-gradient-top { stop-color: #b7f3fb; }
+.not-found-gradient-bottom { stop-color: #55bedf; }
+.not-found-digit-depth { fill: #399bc6; }
+.not-found-ground { fill: var(--accent-text); opacity: .08; }
+.not-found-clouds, .not-found-bubble { fill: var(--card); stroke: var(--border); stroke-width: 1.5; }
+.not-found-face, .not-found-question { stroke: var(--accent-text); }
+.not-found h1 { margin: 0 0 18px; font-size: clamp(32px, 4vw, 44px); line-height: 1.15; letter-spacing: -.045em; font-weight: 800; }
+.not-found-description, .not-found-guidance { max-width: 630px; margin: 0 auto; color: var(--muted); font-size: 16px; line-height: 1.75; text-wrap: pretty; }
+.not-found-guidance { margin-top: 5px; }
+.not-found-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+.not-found-actions .button-outline { background: var(--card); }
+.not-found-actions .button-outline:hover { background: var(--surface-2); }
+:root[data-theme="dark"] .not-found-gradient-top { stop-color: #91e6f2; }
+:root[data-theme="dark"] .not-found-gradient-bottom { stop-color: #2f8dac; }
+:root[data-theme="dark"] .not-found-digit-depth { fill: #1e617f; }
+:root[data-theme="dark"] .not-found-face { stroke: #a3eaf3; }
+@media (max-width: 768px) { .not-found { padding-block: 42px 56px; }.not-found-illustration { width: min(100%, 460px); } }
+@media (max-width: 470px) { .not-found { padding-inline: 24px; }.not-found-illustration { margin-bottom: 22px; }.not-found-description, .not-found-guidance { font-size: 15px; }.not-found-actions { flex-direction: column; gap: 12px; }.not-found-actions .button { width: 100%; white-space: normal; } }
+
 /* Account sign-in */
 .nav-auth-placeholder { display: block; width: 105px; height: 18px; border-radius: 9px; background: var(--surface-2); }
 .nav-account { display: flex; align-items: center; gap: 12px; min-width: 0; }
