@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { PageIntro } from "@/components/ui/PageIntro";
+import { NotFoundContent } from "@/components/errors/NotFoundContent";
 
 export default function RoomNotFound() {
-  return <><PageIntro eyebrow="Les salons Chatnet" title="Salon introuvable." description="Ce salon ne figure pas dans la liste publique des salons enregistrés." /><section className="section directory-section"><div className="container"><Link href="/salons" className="button button-outline">Retour aux salons</Link></div></section></>;
+  return <NotFoundContent title="Salon introuvable." description="Ce salon ne figure pas dans la liste publique des salons enregistrés." guidance="Vous pouvez retourner à l’accueil ou découvrir les autres salons." destination={{ href: "/salons", label: "Retour aux salons" }} />;
 }

@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { PageIntro } from "@/components/ui/PageIntro";
+import { NotFoundContent } from "@/components/errors/NotFoundContent";
 
 export default function MemberNotFound() {
-  return <><PageIntro eyebrow="La communauté" title="Profil introuvable." description="Ce profil membre n’est pas disponible." /><section className="section auth-section"><div className="container"><div className="profile-card"><Link href="/communaute" className="button button-outline">Retour à la communauté</Link></div></div></section></>;
+  return <NotFoundContent title="Profil introuvable." description="Ce profil membre n’est pas disponible." guidance="Vous pouvez retourner à l’accueil ou découvrir la communauté." destination={{ href: "/communaute", label: "Retour à la communauté" }} />;
 }
