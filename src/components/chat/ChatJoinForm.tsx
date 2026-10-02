@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/Icons";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AuthenticatedChatCard } from "./AuthenticatedChatCard";
 import { buildChatUrl, ORIGIN_TICKET_URL, type ChatJoinDetails } from "@/lib/chat";
+import { roomJoinName } from "@/lib/rooms";
 
 type Field = "nick" | "age" | "sexe" | "ville";
 type FieldErrors = Partial<Record<Field, string>>;
@@ -25,14 +26,16 @@ function validate(details: { nick: string; age: string; sexe: string; ville: str
   return errors;
 }
 
-export function ChatJoinForm() {
+export function ChatJoinForm({ selectedRoom }: { selectedRoom?: string } = {}) {
   const { user, loading } = useAuth();
+  const room = selectedRoom === undefined ? undefined : roomJoinName(selectedRoom);
+  if (room === null) return <p role="alert">L’ouverture directe de ce salon n’est pas disponible avec son nom actuel.</p>;
   if (loading) return <div className="chat-join-card member-chat-loading" id="rejoindre" role="status" aria-label="Vérification de la session"><span className="member-chat-skeleton avatar" /><span className="member-chat-skeleton title" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton button" /></div>;
-  if (user) return <AuthenticatedChatCard key={user.nickname} nickname={user.nickname} />;
-  return <GuestChatJoinForm />;
+  if (user) return <AuthenticatedChatCard key={`${user.nickname}:${room ?? "Accueil"}`} nickname={user.nickname} selectedRoom={room} />;
+  return <GuestChatJoinForm key={room ?? "Accueil"} selectedRoom={room} />;
 }
 
-function GuestChatJoinForm() {
+function GuestChatJoinForm({ selectedRoom }: { selectedRoom?: string }) {
   const [nick, setNick] = useState("");
   const [age, setAge] = useState("");
   const [sexe, setSexe] = useState<"M" | "F" | "">("");
@@ -111,7 +114,7 @@ function GuestChatJoinForm() {
           throw new Error("Origin ticket missing from response");
         }
         if (chatWindow.closed) throw new Error("Chat window closed before redirect");
-        chatWindow.location.href = buildChatUrl(details as ChatJoinDetails, data.ticket);
+        chatWindow.location.href = buildChatUrl(details as ChatJoinDetails, data.ticket, selectedRoom);
         blankWindowRef.current = null;
       } finally {
         window.clearTimeout(timeout);
@@ -130,7 +133,7 @@ function GuestChatJoinForm() {
 
   return <div className="chat-join-card" id="rejoindre">
     <div className="chat-join-head"><span className="chat-join-mark"><Icon name="chat" size={20} /></span><div><span className="chat-join-eyebrow">Entrez dans la conversation</span><h2>Rejoindre maintenant</h2></div></div>
-    <p className="chat-join-intro">Choisissez un pseudo et retrouvez le salon #Accueil.</p>
+    <p className="chat-join-intro">Choisissez un pseudo et retrouvez le salon #{selectedRoom ?? "Accueil"}.</p>
     <form onSubmit={handleSubmit} noValidate>
       <div className="chat-join-field"><label htmlFor="join-nick">Pseudo</label><input id="join-nick" name="nick" value={nick} onChange={(event) => setNick(event.target.value)} placeholder="Entrez votre pseudo" autoComplete="nickname" maxLength={16} aria-invalid={Boolean(errors.nick)} aria-describedby={errors.nick ? "join-nick-error" : undefined} required />{errors.nick && <span id="join-nick-error" className="field-error">{errors.nick}</span>}</div>
       <div className="chat-join-field"><label htmlFor="join-age">Âge</label><input id="join-age" name="age" type="number" min={16} max={99} step={1} inputMode="numeric" value={age} onChange={(event) => setAge(event.target.value)} placeholder="Entrez votre âge" aria-invalid={Boolean(errors.age)} aria-describedby={errors.age ? "join-age-error" : undefined} required />{errors.age && <span id="join-age-error" className="field-error">{errors.age}</span>}</div>

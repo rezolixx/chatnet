@@ -19,7 +19,7 @@ function isChatProfile(value: unknown, nickname: string): value is ChatProfile {
     && typeof profile.pays === "string" && Boolean(profile.pays);
 }
 
-export function AuthenticatedChatCard({ nickname }: { nickname: string }) {
+export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: string; selectedRoom?: string }) {
   const { refreshUser } = useAuth();
   const [profile, setProfile] = useState<ChatProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,7 +108,7 @@ export function AuthenticatedChatCard({ nickname }: { nickname: string }) {
         age: String(profile.age),
         sexe: profile.gender === "Homme" ? "M" : "F",
         ville: profile.pays,
-      }, prepared.token, prepared.ticket as string | undefined);
+      }, prepared.token, prepared.ticket as string | undefined, selectedRoom);
       blankWindowRef.current = null;
     } catch {
       if (!chatWindow.closed) chatWindow.close();

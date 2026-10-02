@@ -182,8 +182,19 @@ img { max-width: 100%; }
 .room-card > p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .room-card-bottom { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--border); }
 .room-availability { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
-.room-open { display: grid; place-items: center; width: 31px; height: 31px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent-text); }
+.room-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent-text); font-size: 12px; font-weight: 700; }
 .room-open:hover { background: var(--cyan-light); }
+.room-card-bottom { flex-wrap: wrap; }
+.room-card h3 a:hover { color: var(--accent-text); }
+.room-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: 32px; align-items: start; }
+.room-back { margin-bottom: 28px; }
+.room-detail { min-width: 0; padding: 28px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.room-detail h2, .room-join > h2 { margin: 0 0 18px; font-size: 22px; overflow-wrap: anywhere; }
+.room-topic { margin: 0; color: var(--muted); line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+.room-join { min-width: 0; }
+.room-join .chat-join-card { width: 100%; }
+.page-intro h1 { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .room-detail-grid { grid-template-columns: minmax(0, 1fr); }.room-detail { padding: 22px; } }
 .why-section { background: var(--surface); }
 .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 42px; background: var(--border); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; }
 .benefit { min-height: 195px; padding: 28px; background: var(--card); }
