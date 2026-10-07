@@ -6,9 +6,30 @@ import { MemberAvatar } from "@/components/community/MemberAvatar";
 import { Icon } from "@/components/ui/Icons";
 import type { ChatProfile } from "@/lib/auth/chat-profile";
 import { buildAuthenticatedChatUrl } from "@/lib/chat";
+import { allowsLegacyChatFallback, CHAT_HANDOFF_REDEEM_URL, DEFAULT_CHAT_ROOM, isChatHandoffCode } from "@/lib/chat-handoff";
+import { roomJoinName } from "@/lib/rooms";
 
 const unavailable = "Votre profil chat est temporairement indisponible. Veuillez réessayer.";
 const connectionError = "Impossible de se connecter au chat pour le moment. Veuillez réessayer.";
+const handoffTimeout = 20000;
+const prepareTimeout = 25000;
+
+// The code travels only in this POST body, into the already-opened chat window.
+function submitHandoff(code: string, target: string) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = CHAT_HANDOFF_REDEEM_URL;
+  form.target = target;
+  form.hidden = true;
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "code";
+  input.value = code;
+  form.appendChild(input);
+  document.body.appendChild(form);
+  try { form.submit(); }
+  finally { form.remove(); }
+}
 
 function isChatProfile(value: unknown, nickname: string): value is ChatProfile {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -63,14 +84,22 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
   async function joinChat() {
     if (!profile || pendingRef.current) return;
     setError("");
-    // The blank tab must be opened by the click, before the asynchronous preparation.
-    let chatWindow: Window | null = null;
-    try { chatWindow = window.open("", "_blank"); }
+    const room = selectedRoom === undefined ? DEFAULT_CHAT_ROOM : roomJoinName(selectedRoom);
+    if (!room) {
+      setError(connectionError);
+      return;
+    }
+    // The tab must be opened by the click, before any request. Its unique
+    // name lets the handoff form target this exact window.
+    const target = `chatnet-chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    let opened: Window | null = null;
+    try { opened = window.open("about:blank", target); }
     catch { /* Treat a blocked popup like a null result. */ }
-    if (!chatWindow) {
+    if (!opened) {
       setError("Votre navigateur a bloqué l’ouverture du chat. Autorisez les fenêtres pour Chatnet, puis réessayez.");
       return;
     }
+    const chatWindow = opened;
     try { chatWindow.opener = null; }
     catch {
       chatWindow.close();
@@ -82,40 +111,79 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
     setPending(true);
     const controller = new AbortController();
     requestRef.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 25000);
+    let submitted = false;
+
+    // Resolves null after a network error or timeout; rejects once cancelled.
+    async function post(url: string, body: string | undefined, timeoutMs: number): Promise<{ status: number; data: unknown } | null> {
+      const attempt = new AbortController();
+      const abort = () => attempt.abort();
+      controller.signal.addEventListener("abort", abort);
+      const timeout = window.setTimeout(abort, timeoutMs);
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+          signal: attempt.signal,
+          ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body }),
+        });
+        const text = response.ok ? await response.text() : "";
+        let data: unknown = null;
+        try { data = JSON.parse(text); }
+        catch { /* Rejected by the response validation. */ }
+        return { status: response.status, data };
+      } catch {
+        if (controller.signal.aborted) throw new Error("Chat entry cancelled");
+        return null;
+      } finally {
+        window.clearTimeout(timeout);
+        controller.signal.removeEventListener("abort", abort);
+      }
+    }
+
+    async function sessionExpired() {
+      chatWindow.close();
+      blankWindowRef.current = null;
+      await refreshUser(true);
+    }
+
     try {
-      const response = await fetch("/api/auth/chat/prepare", {
-        method: "POST",
-        cache: "no-store",
-        credentials: "same-origin",
-        signal: controller.signal,
-      });
-      if (response.status === 401 || response.status === 419) {
-        chatWindow.close();
+      const handoff = await post("/api/auth/chat/handoff", JSON.stringify({ room }), handoffTimeout);
+      if (handoff && (handoff.status === 401 || handoff.status === 419)) return await sessionExpired();
+      if (handoff && handoff.status >= 200 && handoff.status < 300) {
+        // An unexpected success is an error, never a silent legacy fallback.
+        const code = handoff.data && typeof handoff.data === "object" ? (handoff.data as Record<string, unknown>).handoff : undefined;
+        if (!isChatHandoffCode(code)) throw new Error("Invalid chat handoff");
+        if (controller.signal.aborted || chatWindow.closed) throw new Error("Chat window unavailable");
+        submitHandoff(code, target);
+        submitted = true;
         blankWindowRef.current = null;
-        await refreshUser(true);
         return;
       }
-      if (!response.ok) throw new Error("Chat preparation unavailable");
-      const data: unknown = await response.json();
+      if (handoff && !allowsLegacyChatFallback(handoff.status)) throw new Error("Chat handoff refused");
+
+      // Legacy rollout fallback, in the same tab and for the same room.
+      const prepared = await post("/api/auth/chat/prepare", undefined, prepareTimeout);
+      if (prepared && (prepared.status === 401 || prepared.status === 419)) return await sessionExpired();
+      if (!prepared || prepared.status < 200 || prepared.status >= 300) throw new Error("Chat preparation unavailable");
+      const data = prepared.data;
       if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid chat preparation");
-      const prepared = data as Record<string, unknown>;
-      if (prepared.nickname !== profile.nickname || typeof prepared.token !== "string" || !prepared.token
-        || (prepared.ticket !== undefined && (typeof prepared.ticket !== "string" || !prepared.ticket))) throw new Error("Invalid chat credentials");
+      const legacy = data as Record<string, unknown>;
+      if (legacy.nickname !== profile.nickname || typeof legacy.token !== "string" || !legacy.token
+        || (legacy.ticket !== undefined && (typeof legacy.ticket !== "string" || !legacy.ticket))) throw new Error("Invalid chat credentials");
       if (controller.signal.aborted || chatWindow.closed) throw new Error("Chat window unavailable");
       chatWindow.location.href = buildAuthenticatedChatUrl({
         nick: profile.nickname,
         age: String(profile.age),
         sexe: profile.gender === "Homme" ? "M" : "F",
         ville: profile.pays,
-      }, prepared.token, prepared.ticket as string | undefined, selectedRoom);
+      }, legacy.token, legacy.ticket as string | undefined, room);
       blankWindowRef.current = null;
     } catch {
-      if (!chatWindow.closed) chatWindow.close();
+      if (!submitted && !chatWindow.closed) chatWindow.close();
       blankWindowRef.current = null;
       if (requestRef.current === controller) setError(connectionError);
     } finally {
-      window.clearTimeout(timeout);
       if (requestRef.current === controller) {
         requestRef.current = null;
         setPending(false);

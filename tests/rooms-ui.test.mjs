@@ -162,17 +162,21 @@ test("guest handler forwards selected room only to the final chat URL, preservin
   assert.equal(new URL(navigations[0]).searchParams.get("chatnow"), "1");
 });
 
-test("member handler keeps the preparation contract and uses the selected fragment", async () => {
+test("member handler sends the selected room to the handoff and keeps the legacy preparation contract", async () => {
   const calls = [], navigations = [];
   const profile = { nickname: "Member", avatar: null, age: 25, gender: "Femme", pays: "France" };
-  const h = client("components/chat/AuthenticatedChatCard.tsx", { fetch: async (url, init) => { calls.push({ url, init }); return new Response(JSON.stringify(url.endsWith("chat-profile") ? { profile } : { nickname: "Member", token: "one-time", ticket: "ticket" })); }, window: { open: () => ({ closed: false, close() {}, location: { set href(url) { navigations.push(url); } } }), setTimeout: () => 1, clearTimeout() {} } });
+  const reply = (url) => url.endsWith("chat-profile") ? new Response(JSON.stringify({ profile }))
+    : url.endsWith("/handoff") ? new Response("{}", { status: 404 })
+      : new Response(JSON.stringify({ nickname: "Member", token: "one-time", ticket: "ticket" }));
+  const h = client("components/chat/AuthenticatedChatCard.tsx", { fetch: async (url, init) => { calls.push({ url, init }); return reply(url); }, window: { open: () => ({ closed: false, close() {}, location: { set href(url) { navigations.push(url); } } }), setTimeout: () => 1, clearTimeout() {} } });
   const props = { nickname: "Member", selectedRoom: "#radio" };
   h.render("AuthenticatedChatCard", props);
   h.effects.forEach((fn) => fn());
   await new Promise((resolve) => setImmediate(resolve));
   await byType(h.render("AuthenticatedChatCard", props), "button")[0].props.onClick();
-  assert.deepEqual(calls.map((c) => c.url), ["/api/auth/chat-profile", "/api/auth/chat/prepare"]);
-  assert.equal(calls[1].init.method, "POST");
-  assert.equal(calls[1].init.body, undefined);
+  assert.deepEqual(calls.map((c) => c.url), ["/api/auth/chat-profile", "/api/auth/chat/handoff", "/api/auth/chat/prepare"]);
+  assert.deepEqual(JSON.parse(calls[1].init.body), { room: "radio" });
+  assert.equal(calls[2].init.method, "POST");
+  assert.equal(calls[2].init.body, undefined);
   assert.equal(new URL(navigations[0]).hash, "#radio");
 });
