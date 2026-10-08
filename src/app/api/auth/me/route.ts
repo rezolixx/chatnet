@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (!cookies) return NextResponse.json({ code: "AUTH_REQUIRED" }, { status: 401, headers: noStore });
 
   try {
-    const upstream = await laravelMe(cookies);
+    const upstream = await laravelMe(cookies, request);
     if (upstream.response.status === 401 || upstream.response.status === 419) {
       const response = NextResponse.json({ code: "AUTH_REQUIRED" }, { status: 401, headers: noStore });
       clearBridgeCookies(response);

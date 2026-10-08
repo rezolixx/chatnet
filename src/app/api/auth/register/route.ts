@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   if (!input) return error(422, "INVALID_INPUT", "Vérifiez les champs du formulaire.", errors);
 
   try {
-    const cookies = await csrfCookies();
+    const cookies = await csrfCookies(undefined, request);
     const xsrf = cookies && xsrfHeader(cookies);
     if (!cookies || !xsrf) return error(503, "UNAVAILABLE", "Inscription temporairement indisponible.");
     const upstream = await fetchLaravel("/api/register", {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "application/json", Cookie: upstreamCookieHeader(cookies), "X-XSRF-TOKEN": xsrf },
       body: JSON.stringify(input),
       signal: AbortSignal.timeout(20000),
-    });
+    }, request);
     if (upstream.status !== 201) {
       const body = upstream.status === 422 || upstream.status === 409 ? await upstream.json().catch(() => null) : null;
       const failure = registrationFailure(upstream.status, body);

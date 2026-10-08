@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const initial = await csrfCookies();
+    const initial = await csrfCookies(undefined, request);
     if (!initial) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");
     const xsrf = xsrfHeader(initial);
     if (!xsrf) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         Cookie: upstreamCookieHeader(initial),
       },
       body: JSON.stringify({ login, password }),
-    });
+    }, request);
     if (loginResponse.status === 422 || loginResponse.status === 401 || loginResponse.status === 403) {
       return error(401, "INVALID_CREDENTIALS", "Identifiants incorrects.");
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     const finalCookies = completeUpstreamCookies(mergeUpstreamCookies(initial, loginResponse.headers));
     if (!finalCookies) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");
-    const verified = await laravelMe(finalCookies);
+    const verified = await laravelMe(finalCookies, request);
     if (!verified.response.ok) return error(401, "INVALID_CREDENTIALS", "Connexion impossible. Réessayez.");
     const user = projectSafeUser(await verified.response.json());
     if (!user) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");
