@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader, type UpstreamCookies } from "@/lib/auth/cookies.server";
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
-import { hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
+import { hasIncompleteChatFields, hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { DEFAULT_CHAT_ROOM, isChatHandoffCode, MAX_HANDOFF_EXPIRES_IN } from "@/lib/chat-handoff";
@@ -11,8 +11,9 @@ export const runtime = "nodejs";
 
 const noStore = { "Cache-Control": "no-store" };
 const maxBytes = 1024;
-// Laravel refusals kept as-is: the browser then tries the legacy chat entry
-// (never for PROFILE_BIRTHDATE_INVALID, handled first).
+// Laravel refusals kept as fixed codes. The browser tries the legacy chat
+// entry only after 404 and 409 (src/lib/chat-handoff.ts), and Laravel then
+// refuses it to every bound profile; any other refusal is shown as is.
 const refusals = new Map([
   [403, "CHAT_HANDOFF_REFUSED"],
   [404, "CHAT_HANDOFF_UNAVAILABLE"],
@@ -105,6 +106,8 @@ export async function POST(request: NextRequest) {
     const profile = projectChatProfile(raw, user.nickname);
     // Age policy: no handoff and no legacy fallback until the birthdate is corrected.
     if (!profile && hasRefusedBirthdate(raw, user.nickname)) return withBridge(error(422, PROFILE_BIRTHDATE_INVALID), cookies, current);
+    // Gender or country unusable: no handoff and no legacy fallback until completed.
+    if (!profile && hasIncompleteChatFields(raw, user.nickname)) return withBridge(error(422, "PROFILE_INCOMPLETE"), cookies, current);
     if (!profile) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
 
     const refreshed = await csrfCookies(current);

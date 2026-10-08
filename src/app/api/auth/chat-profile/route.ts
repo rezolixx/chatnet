@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, mergeUpstreamCookies, completeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader } from "@/lib/auth/cookies.server";
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
-import { hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
+import { hasIncompleteChatFields, hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
 import { fetchLaravel, laravelMe, projectSafeUser } from "@/lib/auth/laravel.server";
 
 export const runtime = "nodejs";
@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     const profile = projectChatProfile(raw, user.nickname);
     // Age policy: the member is asked to correct the birthdate, never told the profile is "unavailable".
     if (!profile && hasRefusedBirthdate(raw, user.nickname)) return NextResponse.json({ code: PROFILE_BIRTHDATE_INVALID }, { status: 422, headers: noStore });
+    // Gender or country unusable: to complete, not a temporary failure.
+    if (!profile && hasIncompleteChatFields(raw, user.nickname)) return NextResponse.json({ code: "PROFILE_INCOMPLETE" }, { status: 422, headers: noStore });
     if (!profile) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
 
     const response = NextResponse.json({ profile }, { headers: noStore });

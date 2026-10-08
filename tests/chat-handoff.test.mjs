@@ -11,7 +11,7 @@ import { NextRequest } from "next/server.js";
 import { loadAuthRoute } from "./helpers/auth-route.mjs";
 import { elements } from "./helpers/password-form.mjs";
 import { projectChatProfile } from "../src/lib/auth/chat-profile.ts";
-import { CHAT_HANDOFF_REDEEM_URL, allowsLegacyChatFallback, isChatHandoffCode } from "../src/lib/chat-handoff.ts";
+import { CHAT_HANDOFF_REDEEM_URL, ChatEntryFailure, allowsLegacyChatFallback, chatEntryMessages, chatEntryRefusal, isChatHandoffCode } from "../src/lib/chat-handoff.ts";
 
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL("../src/", import.meta.url));
@@ -62,7 +62,37 @@ test("shared V2 rules: exact dch1 code shape and fallback statuses", () => {
   assert.equal(CHAT_HANDOFF_REDEEM_URL, "https://laravel.discut.org/api/chat/identity/handoff/redeem");
   assert.ok(isChatHandoffCode(code));
   for (const value of [`${code}x`, code.slice(0, -1), `dct1_${code.slice(5)}`, `dch1_${"a".repeat(42)}=`, ` ${code}`, `dch1_${"é".repeat(43)}`, null, 42]) assert.equal(isChatHandoffCode(value), false);
-  assert.deepEqual([400, 401, 403, 404, 405, 409, 419, 422, 429, 500, 503, 599, 200].filter(allowsLegacyChatFallback), [403, 404, 409, 422, 429, 500, 503, 599]);
+  // T21: only "not bound yet" (409 CHAT_ACCOUNT_UNAVAILABLE) and "V2 off" (404).
+  const statuses = [400, 401, 403, 404, 405, 409, 419, 422, 429, 500, 502, 503, 599, 200];
+  assert.deepEqual(statuses.filter((status) => allowsLegacyChatFallback(status)), [404]);
+  assert.deepEqual(statuses.filter((status) => allowsLegacyChatFallback(status, "CHAT_ACCOUNT_UNAVAILABLE")), [404, 409]);
+  for (const other of ["CHAT_HANDOFF_REFUSED", "CHAT_DESTINATION_REFUSED", "RATE_LIMITED", "UNAVAILABLE", "PROFILE_INCOMPLETE"]) {
+    assert.equal(allowsLegacyChatFallback(409, other), false, other);
+  }
+});
+
+test("refusal reasons: fixed codes map to specific French messages, everything else is retryable", () => {
+  for (const [status, code, expected] of [
+    [403, "CHAT_HANDOFF_REFUSED", "ACCOUNT_UNAVAILABLE"],
+    [403, "ACCOUNT_UNAVAILABLE", "ACCOUNT_UNAVAILABLE"],
+    [403, "UNTRUSTED_ORIGIN", "CHAT_UNAVAILABLE"],
+    [409, "CHAT_IDENTITY_V2_REQUIRED", "CHAT_IDENTITY_V2_REQUIRED"],
+    [409, "CHAT_ACCOUNT_UNAVAILABLE", "CHAT_IDENTITY_V2_REQUIRED"],
+    [422, "PROFILE_INCOMPLETE", "PROFILE_INCOMPLETE"],
+    [422, "CHAT_DESTINATION_REFUSED", "INVALID_DESTINATION"],
+    [400, "INVALID_ROOM", "INVALID_ROOM"],
+    [400, "INVALID_INPUT", "CHAT_UNAVAILABLE"],
+    [429, "RATE_LIMITED", "RATE_LIMITED"],
+    [500, undefined, "CHAT_UNAVAILABLE"],
+    [502, "UNAVAILABLE", "CHAT_UNAVAILABLE"],
+    [503, "UNAVAILABLE", "CHAT_UNAVAILABLE"],
+  ]) assert.equal(chatEntryRefusal(status, code), expected, `${status} ${code}`);
+  for (const [refusal, message] of Object.entries(chatEntryMessages)) {
+    const failure = new ChatEntryFailure(refusal);
+    assert.equal(failure.message, message);
+    assert.equal(failure.refusal, refusal);
+    assert.doesNotMatch(message, /sasl|nickserv|handoff|irc|ticket|token|identify|legacy/i, refusal);
+  }
 });
 
 test("BFF rejects untrusted origins before any network call", async () => {
@@ -154,7 +184,15 @@ test("BFF maps Homme/Femme to M/F, defaults to Accueil and normalizes the select
 });
 
 test("BFF refuses incomplete or foreign server profiles before requesting a handoff", async () => {
-  for (const profile of [{ ...member, gender: "unknown" }, { ...member, pays: "" }, { ...member, nickname: "Other" }, { ...member, birthdate: undefined }, { nickname: "Other", birthdate: "1900-01-01" }]) {
+  // Gender or country unusable: PROFILE_INCOMPLETE (to complete, never a fallback).
+  for (const profile of [{ ...member, gender: "unknown" }, { ...member, gender: undefined }, { ...member, pays: "" }, { ...member, pays: "x".repeat(121) }]) {
+    const h = bff([json(user), json(profile)]);
+    const response = await h.POST(request());
+    assert.equal(response.status, 422);
+    assert.deepEqual(await safePayload(response), { code: "PROFILE_INCOMPLETE" });
+    assert.equal(h.calls.length, 2);
+  }
+  for (const profile of [{ ...member, nickname: "Other" }, { ...member, birthdate: undefined }, { nickname: "Other", birthdate: "1900-01-01" }, { nickname: "Other", gender: "unknown" }]) {
     const h = bff([json(user), json(profile)]);
     const response = await h.POST(request());
     assert.equal(response.status, 503);
@@ -230,6 +268,30 @@ test("chat profile and legacy prepare BFFs answer PROFILE_BIRTHDATE_INVALID too"
   assert.equal((await other.route.POST(prepareRequest())).status, 503);
 });
 
+test("T21: chat profile BFF answers PROFILE_INCOMPLETE; legacy BFF forwards only Laravel's fixed refusals", async () => {
+  const loadWith = (name, responses) => loadAuthRoute(name, async () => responses.shift());
+  const profileRequest = () => new NextRequest("https://chatnet.fr/api/auth/chat-profile", { headers: { Cookie: cookie } });
+  for (const incomplete of [{ ...member, gender: "Autre" }, { ...member, pays: " " }]) {
+    const response = await loadWith("chat-profile", [json(user), json(incomplete)]).GET(profileRequest());
+    assert.equal(response.status, 422);
+    assert.deepEqual(await safePayload(response), { code: "PROFILE_INCOMPLETE" });
+  }
+  // A refused birthdate wins over a missing gender: the date is corrected first.
+  const both = await loadWith("chat-profile", [json(user), json({ ...member, gender: "Autre", birthdate: "1900-01-01" })]).GET(profileRequest());
+  assert.deepEqual(await safePayload(both), { code: "PROFILE_BIRTHDATE_INVALID" });
+
+  const prepareRequest = () => new NextRequest("https://chatnet.fr/api/auth/chat/prepare", { method: "POST", headers: { Origin: "https://chatnet.fr", Cookie: cookie } });
+  for (const [status, code] of [[409, "CHAT_IDENTITY_V2_REQUIRED"], [403, "ACCOUNT_UNAVAILABLE"]]) {
+    const refused = await loadWith("chat/prepare", [json(user), csrf(), json({ code, message: secret }, status)]).POST(prepareRequest());
+    assert.equal(refused.status, status);
+    assert.deepEqual(await safePayload(refused), { code });
+    // Another body with the same status keeps the generic mapping.
+    const other = await loadWith("chat/prepare", [json(user), csrf(), json({ code: secret, message: secret }, status)]).POST(prepareRequest());
+    assert.equal(other.status, 503);
+    assert.deepEqual(await safePayload(other), { code: "UNAVAILABLE" });
+  }
+});
+
 test("BFF keeps refreshed upstream cookies in the HttpOnly bridge only", async () => {
   const h = bff(upto(json({ handoff: code, expires_in: 60 }, 200, { "Set-Cookie": "laravel_session=session-three; Path=/; HttpOnly" })));
   const response = await h.POST(request());
@@ -247,7 +309,7 @@ test("BFF keeps refreshed upstream cookies in the HttpOnly bridge only", async (
   assert.match(refused.headers.get("Set-Cookie"), /chatnet_upstream_session=session-three/);
 });
 
-test("BFF preserves fallback-relevant refusals with generic codes and maps failures to 503", async () => {
+test("BFF keeps Laravel's refusals as fixed codes and maps failures to 503", async () => {
   for (const [status, expected] of [[403, "CHAT_HANDOFF_REFUSED"], [404, "CHAT_HANDOFF_UNAVAILABLE"], [409, "CHAT_ACCOUNT_UNAVAILABLE"], [422, "CHAT_DESTINATION_REFUSED"], [429, "RATE_LIMITED"]]) {
     const h = bff(upto(json({ code: secret, message: secret, errors: { ville: [secret] } }, status)));
     const response = await h.POST(request());
@@ -406,10 +468,8 @@ test("duplicate clicks while pending create one tab, one handoff request and one
   assert.equal(h.events.filter((e) => e === "open").length, 1);
 });
 
-test("fallback-relevant V2 failures reuse the same tab for the legacy URL and the same room", async () => {
-  const failures = [403, 404, 409, 422, 429, 500, 502, 503].map((status) => respond({ code: "X" }, status));
-  failures.push(() => Promise.reject(new TypeError("Failed to fetch")));
-  for (const handoff of failures) {
+test("an account V2 cannot serve yet (409) or V2 off (404) reuses the same tab for the legacy URL and room", async () => {
+  for (const handoff of [respond({ code: "CHAT_ACCOUNT_UNAVAILABLE" }, 409), respond({ code: "CHAT_HANDOFF_UNAVAILABLE" }, 404), respond("<html>", 404)]) {
     const h = memberCard({ handoff, prepare: legacy });
     await h.mount();
     await h.click();
@@ -431,8 +491,33 @@ test("fallback-relevant V2 failures reuse the same tab for the legacy URL and th
   }
 });
 
-test("a V2 timeout falls back in the same tab; the default room is identical in both flows", async () => {
-  const h = memberCard({ handoff: hang, prepare: legacy, selectedRoom: undefined });
+// T21: every other V2 refusal or failure is shown, never downgraded.
+test("other V2 refusals and failures close the tab with a specific message, never the legacy flow", async () => {
+  for (const [handoff, message] of [
+    [respond({ code: "CHAT_HANDOFF_REFUSED" }, 403), chatEntryMessages.ACCOUNT_UNAVAILABLE],
+    [respond({ code: "UNTRUSTED_ORIGIN" }, 403), chatEntryMessages.CHAT_UNAVAILABLE],
+    [respond({ code: "X" }, 409), chatEntryMessages.CHAT_IDENTITY_V2_REQUIRED],
+    [respond({ code: "PROFILE_INCOMPLETE" }, 422), chatEntryMessages.PROFILE_INCOMPLETE],
+    [respond({ code: "CHAT_DESTINATION_REFUSED" }, 422), chatEntryMessages.INVALID_DESTINATION],
+    [respond({ code: "INVALID_ROOM" }, 400), chatEntryMessages.INVALID_ROOM],
+    [respond({ code: "RATE_LIMITED" }, 429), chatEntryMessages.RATE_LIMITED],
+    ...[500, 502, 503].map((status) => [respond({ code: "UNAVAILABLE" }, status), chatEntryMessages.CHAT_UNAVAILABLE]),
+    [() => Promise.reject(new TypeError("Failed to fetch")), chatEntryMessages.CHAT_UNAVAILABLE],
+  ]) {
+    const h = memberCard({ handoff, prepare: legacy });
+    await h.mount();
+    await h.click();
+    assert.deepEqual(h.urls(), ["/api/auth/chat/handoff"]);
+    assert.equal(h.tabs[0].closes, 1);
+    assert.deepEqual(h.tabs[0].navigations, []);
+    assert.equal(h.forms.length, 0);
+    assert.equal(h.alert(), message);
+    assert.equal(h.button().props.disabled, false);
+  }
+});
+
+test("a V2 timeout is a retryable error, no fallback; the next click gets the handoff in a new tab", async () => {
+  const h = memberCard({ handoff: [hang, respond({ handoff: code })], prepare: legacy, selectedRoom: undefined });
   await h.mount();
   const pending = h.click();
   const timer = h.timers.find((t) => t.ms === 20000 && !t.cleared);
@@ -440,10 +525,54 @@ test("a V2 timeout falls back in the same tab; the default room is identical in 
   timer.fn();
   await pending;
   assert.equal(h.calls[1].init.body, JSON.stringify({ room: "Accueil" }));
-  assert.deepEqual(h.urls(), ["/api/auth/chat/handoff", "/api/auth/chat/prepare"]);
-  assert.equal(h.tabs.length, 1);
-  assert.equal(new URL(h.tabs[0].navigations[0]).hash, "#Accueil");
+  assert.deepEqual(h.urls(), ["/api/auth/chat/handoff"]);
+  assert.equal(h.tabs[0].closes, 1);
+  assert.deepEqual(h.tabs[0].navigations, []);
+  assert.equal(h.alert(), chatEntryMessages.CHAT_UNAVAILABLE);
   assert.ok(h.timers.every((t) => t.cleared));
+
+  await h.click();
+  assert.deepEqual(h.urls(), ["/api/auth/chat/handoff", "/api/auth/chat/handoff"]);
+  assert.equal(h.tabs.length, 2);
+  assert.equal(h.forms.length, 1);
+  assert.equal(h.forms[0].target, h.tabs[1].name);
+  assert.equal(h.tabs[1].closes, 0);
+  assert.equal(h.alert(), undefined);
+});
+
+test("Laravel's legacy refusal after a 409 closes the tab with its message", async () => {
+  for (const [prepare, message] of [
+    [respond({ code: "CHAT_IDENTITY_V2_REQUIRED" }, 409), chatEntryMessages.CHAT_IDENTITY_V2_REQUIRED],
+    [respond({ code: "ACCOUNT_UNAVAILABLE" }, 403), chatEntryMessages.ACCOUNT_UNAVAILABLE],
+    [respond({ code: "UNAVAILABLE" }, 503), chatEntryMessages.CHAT_UNAVAILABLE],
+    [() => Promise.reject(new TypeError("Failed to fetch")), chatEntryMessages.CHAT_UNAVAILABLE],
+  ]) {
+    const h = memberCard({ handoff: respond({ code: "CHAT_ACCOUNT_UNAVAILABLE" }, 409), prepare });
+    await h.mount();
+    await h.click();
+    assert.deepEqual(h.urls(), ["/api/auth/chat/handoff", "/api/auth/chat/prepare"]);
+    assert.equal(h.tabs[0].closes, 1);
+    assert.deepEqual(h.tabs[0].navigations, []);
+    assert.equal(h.alert(), message);
+  }
+});
+
+test("a profile without usable gender or country shows what to complete, with no join button and no request", async () => {
+  const h = memberCard({ profileResponse: respond({ code: "PROFILE_INCOMPLETE" }, 422) });
+  await h.mount();
+  assert.equal(h.alert(), chatEntryMessages.PROFILE_INCOMPLETE);
+  assert.equal(h.button(), undefined);
+  assert.deepEqual(h.urls(), []);
+  assert.equal(h.tabs.length, 0);
+});
+
+test("a selected room Chatnet cannot open is refused before any tab or request", async () => {
+  const h = memberCard({ selectedRoom: "a b" });
+  await h.mount();
+  await h.click();
+  assert.equal(h.alert(), chatEntryMessages.INVALID_ROOM);
+  assert.deepEqual(h.urls(), []);
+  assert.equal(h.tabs.length, 0);
 });
 
 test("V2 401/419 closes the tab and refreshes the user without any fallback", async () => {

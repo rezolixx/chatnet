@@ -26,6 +26,19 @@ export function hasRefusedBirthdate(value: unknown, authenticatedNickname: strin
   return refusal !== null && refusal !== "missing";
 }
 
+/**
+ * Whether the member's own profile, birthdate within the age policy, lacks a
+ * usable gender or country: chat entry then waits for the member to complete
+ * it, never a legacy fallback.
+ */
+export function hasIncompleteChatFields(value: unknown, authenticatedNickname: string, now = new Date()): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  if (raw.nickname !== authenticatedNickname || !text(raw.nickname, 80)) return false;
+  if (!isAllowedAge(ageFromBirthdate(raw.birthdate, now))) return false;
+  return !genderFrom(raw.gender) || !text(raw.pays, 120);
+}
+
 function genderFrom(value: unknown): ChatProfile["gender"] | null {
   if (typeof value !== "string") return null;
   switch (value.trim().toLowerCase()) {
