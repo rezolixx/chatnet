@@ -430,6 +430,8 @@ img { max-width: 100%; }
 .auth-card .chat-join-field select[aria-invalid="true"] { border-color: #c74444; }
 .auth-footnote { margin: 20px 0 0 !important; text-align: center; }
 .auth-footnote a { color: var(--accent-text); font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
+.auth-forgot { justify-self: end; display: inline-flex; align-items: center; min-height: 24px; color: var(--accent-text); font-size: 12px; font-weight: 750; text-underline-offset: 3px; }
+.auth-forgot:hover { text-decoration: underline; }
 .auth-success { padding: 12px 14px; border: 1px solid var(--accent-text); border-radius: 8px; background: var(--cyan-light); color: var(--accent-text) !important; }
 .profile-card { max-width: 860px; min-height: 310px; margin-inline: auto; padding: 34px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); }
 .profile-head { display: flex; align-items: center; gap: 18px; padding-bottom: 26px; border-bottom: 1px solid var(--border); }
