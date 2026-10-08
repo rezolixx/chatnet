@@ -89,18 +89,18 @@ test("malformed and oversized JSON is rejected without forwarding", async () => 
   }
 });
 
-test("password validation mirrors Laravel trimming/minimum and bounds the BFF transport", async () => {
-  for (const new_password of [null, {}, 123456, "", "abcde", "  abc  ", "x".repeat(1025)]) {
+test("password validation mirrors the Laravel/NickServ policy before any network call", async () => {
+  for (const new_password of [null, {}, 123456, "", "abcde", "abcdefghi", "  abcdefgh  ", "abcde fghij", "x".repeat(51), "x".repeat(1025)]) {
     const h = harness([]);
     const response = await h.POST(request({ input: { new_password } }));
     assert.equal(response.status, 422);
     assert.equal(h.calls.length, 0);
     await safePayload(response);
   }
-  assert.deepEqual(validatePasswordInput({ new_password: "  abcdef  " }).input, { new_password: "  abcdef  " });
-  assert.ok(validatePasswordInput({ new_password: "é漢🙂abc" }).input);
-  assert.equal(validatePasswordInput({ new_password: "🙂🙂🙂" }).input, undefined);
-  assert.ok(validatePasswordInput({ new_password: "\u00a0abcd\u00a0" }).input);
+  assert.deepEqual(validatePasswordInput({ new_password: "abcdefghij" }).input, { new_password: "abcdefghij" });
+  assert.ok(validatePasswordInput({ new_password: "é漢🙂abcdefg" }).input);
+  assert.equal(validatePasswordInput({ new_password: "🙂🙂🙂🙂🙂🙂🙂🙂🙂" }).input, undefined);
+  assert.equal(validatePasswordInput({ new_password: "\u00a0abcdefghij" }).input, undefined);
 });
 
 test("changed account identity cannot mutate a different account", async () => {

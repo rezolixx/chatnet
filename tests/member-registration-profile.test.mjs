@@ -6,13 +6,13 @@ import { projectOwnProfile } from "../src/lib/auth/own-profile.ts";
 import { registrationFailure, upstreamRegistrationConflict, upstreamRegistrationErrors, validateRegistration } from "../src/lib/auth/registration.ts";
 import { indexablePaths } from "../src/lib/seo/indexable.ts";
 
-const valid = { nickname: "Member_01", email: "member@example.com", birthdate: "1990-06-15", gender: "Femme", pays: "France", password: "secret123" };
+const valid = { nickname: "Member_01", email: "member@example.com", birthdate: "1990-06-15", gender: "Femme", pays: "France", password: "secret1234" };
 const now = new Date("2026-09-30T12:00:00Z");
 const root = new URL("../src/", import.meta.url);
 const source = (path) => readFileSync(new URL(path, root), "utf8");
 
 test("registration forwards a validated allowlist and no confirmation or arbitrary fields", () => {
-  const result = validateRegistration({ ...valid, nickname: " Member_01 ", email: " member@example.com ", role: "admin", confirmPassword: "secret123" }, undefined, now);
+  const result = validateRegistration({ ...valid, nickname: " Member_01 ", email: " member@example.com ", role: "admin", confirmPassword: "secret1234" }, undefined, now);
   assert.deepEqual(result.errors, {});
   assert.deepEqual(result.input, valid);
   assert.deepEqual(Object.keys(result.input), ["nickname", "email", "birthdate", "gender", "pays", "password"]);
@@ -51,7 +51,7 @@ test("client validation rejects password confirmation mismatch", () => {
 
 test("Laravel field validation is mapped by key, never by raw personal data", () => {
   assert.deepEqual(upstreamRegistrationErrors({ errors: { email: ["private@example.com SQL error"], password: ["raw password"] }, message: "private@example.com" }), {
-    email: "Cette adresse e-mail est invalide ou indisponible.", password: "Vérifiez votre mot de passe.",
+    email: "Cette adresse e-mail est invalide ou indisponible.", password: "Le mot de passe doit contenir au moins 10 caractères, sans espaces.",
   });
   assert.deepEqual(upstreamRegistrationConflict({ message: "Cet email est déjà utilisé." }), { email: "Cette adresse e-mail est déjà utilisée." });
   assert.deepEqual(upstreamRegistrationConflict({ message: "Ce pseudo existe déjà, choisis un autre pseudo." }), { nickname: "Ce pseudo est déjà utilisé." });

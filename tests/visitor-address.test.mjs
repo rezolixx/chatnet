@@ -10,7 +10,7 @@ import { loadAuthRoute } from "./helpers/auth-route.mjs";
 const secret = "chatnet-bff-test-secret-0123456789abcdef";
 const env = { CHATNET_CLIENT_IP_SECRET: secret };
 const bridgeCookies = "chatnet_upstream_session=session-one; chatnet_upstream_xsrf=xsrf%3Done";
-const registration = { nickname: "Member_01", email: "member@example.com", birthdate: "1990-06-15", gender: "Femme", pays: "France", password: "secret123" };
+const registration = { nickname: "Member_01", email: "member@example.com", birthdate: "1990-06-15", gender: "Femme", pays: "France", password: "secret1234" };
 const me = { nickname: "Member_01", avatar: null, pays: "France", description: null, inscritDepuis: "15/06/2020" };
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
