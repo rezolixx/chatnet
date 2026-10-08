@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MemberAvatar } from "@/components/community/MemberAvatar";
 import { Icon } from "@/components/ui/Icons";
+import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
 import type { ChatProfile } from "@/lib/auth/chat-profile";
 import { buildAuthenticatedChatUrl } from "@/lib/chat";
 import { allowsLegacyChatFallback, CHAT_HANDOFF_REDEEM_URL, DEFAULT_CHAT_ROOM, isChatHandoffCode } from "@/lib/chat-handoff";
@@ -11,6 +13,12 @@ import { roomJoinName } from "@/lib/rooms";
 
 const unavailable = "Votre profil chat est temporairement indisponible. Veuillez réessayer.";
 const connectionError = "Impossible de se connecter au chat pour le moment. Veuillez réessayer.";
+// Birthdate outside the 16-120 age policy: entry waits for the member to correct it.
+const birthdateRefused = "Votre date de naissance indique un âge hors des limites autorisées (16 à 120 ans). Corrigez-la dans votre profil pour accéder au chat.";
+
+function responseCode(data: unknown): unknown {
+  return data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>).code : undefined;
+}
 const handoffTimeout = 20000;
 const prepareTimeout = 25000;
 
@@ -46,6 +54,7 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [birthdateBlocked, setBirthdateBlocked] = useState(false);
   const pendingRef = useRef(false);
   const requestRef = useRef<AbortController | null>(null);
   const blankWindowRef = useRef<Window | null>(null);
@@ -59,6 +68,10 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
         if (controller.signal.aborted) return;
         if (response.status === 401 || response.status === 419) {
           await refreshUser(true);
+          return;
+        }
+        if (response.status === 422 && responseCode(await response.json().catch(() => null)) === PROFILE_BIRTHDATE_INVALID) {
+          if (!controller.signal.aborted) setBirthdateBlocked(true);
           return;
         }
         if (!response.ok) throw new Error("Profile unavailable");
@@ -127,7 +140,8 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
           signal: attempt.signal,
           ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body }),
         });
-        const text = response.ok ? await response.text() : "";
+        // 422 bodies are read for their code only (age policy refusal).
+        const text = response.ok || response.status === 422 ? await response.text() : "";
         let data: unknown = null;
         try { data = JSON.parse(text); }
         catch { /* Rejected by the response validation. */ }
@@ -147,6 +161,13 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
       await refreshUser(true);
     }
 
+    // Laravel refused the birthdate (age policy): no fallback, the member corrects it first.
+    function birthdateRefusal() {
+      chatWindow.close();
+      blankWindowRef.current = null;
+      if (requestRef.current === controller) setBirthdateBlocked(true);
+    }
+
     try {
       const handoff = await post("/api/auth/chat/handoff", JSON.stringify({ room }), handoffTimeout);
       if (handoff && (handoff.status === 401 || handoff.status === 419)) return await sessionExpired();
@@ -160,11 +181,13 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
         blankWindowRef.current = null;
         return;
       }
-      if (handoff && !allowsLegacyChatFallback(handoff.status)) throw new Error("Chat handoff refused");
+      if (handoff && handoff.status === 422 && responseCode(handoff.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
+      if (handoff && !allowsLegacyChatFallback(handoff.status, responseCode(handoff.data))) throw new Error("Chat handoff refused");
 
       // Legacy rollout fallback, in the same tab and for the same room.
       const prepared = await post("/api/auth/chat/prepare", undefined, prepareTimeout);
       if (prepared && (prepared.status === 401 || prepared.status === 419)) return await sessionExpired();
+      if (prepared && prepared.status === 422 && responseCode(prepared.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
       if (!prepared || prepared.status < 200 || prepared.status >= 300) throw new Error("Chat preparation unavailable");
       const data = prepared.data;
       if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid chat preparation");
@@ -196,8 +219,9 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
     {loading ? <div className="member-chat-loading" role="status" aria-label="Chargement du profil membre"><span className="member-chat-skeleton avatar" /><span className="member-chat-skeleton title" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton button" /></div>
       : <>
         <div className="member-chat-identity"><MemberAvatar member={profile ?? { nickname, avatar: null }} /><div><span className="chat-join-eyebrow">Membre Chatnet</span><h2>{profile?.nickname ?? nickname}</h2></div></div>
-        {profile && <><dl className="member-chat-details"><div><dt>Âge</dt><dd>{profile.age} ans</dd></div><div><dt>Genre</dt><dd>{profile.gender}</dd></div><div><dt>Pays</dt><dd>{profile.pays}</dd></div></dl><button type="button" className="button button-primary chat-join-submit" onClick={joinChat} disabled={pending}>{pending ? "Connexion..." : "Rejoindre le Chat"}{!pending && <Icon name="arrow" size={18} />}</button></>}
-        {error && <p className="chat-join-error" role="alert">{error}</p>}
+        {profile && !birthdateBlocked && <><dl className="member-chat-details"><div><dt>Âge</dt><dd>{profile.age} ans</dd></div><div><dt>Genre</dt><dd>{profile.gender}</dd></div><div><dt>Pays</dt><dd>{profile.pays}</dd></div></dl><button type="button" className="button button-primary chat-join-submit" onClick={joinChat} disabled={pending}>{pending ? "Connexion..." : "Rejoindre le Chat"}{!pending && <Icon name="arrow" size={18} />}</button></>}
+        {birthdateBlocked && <p className="chat-join-error" role="alert">{birthdateRefused} <Link href="/profil">Corriger ma date de naissance</Link></p>}
+        {error && !birthdateBlocked && <p className="chat-join-error" role="alert">{error}</p>}
       </>}
   </div>;
 }
