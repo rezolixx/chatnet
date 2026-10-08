@@ -88,7 +88,8 @@ test("registration BFF keeps the session handshake and safe upstream diagnostics
   assert.match(register, /hasTrustedOrigin\(request\)/);
   assert.match(register, /maxBytes = 4096/);
   assert.match(register, /size > maxBytes/);
-  assert.match(register, /csrfCookies\(\)/);
+  // A fresh handshake (no current cookies); only the visitor request is passed.
+  assert.match(register, /csrfCookies\((?:undefined, request)?\)/);
   assert.match(register, /xsrfHeader\(cookies\)/);
   assert.match(register, /upstreamCookieHeader\(cookies\)/);
   assert.match(register, /"\/api\/register"/);

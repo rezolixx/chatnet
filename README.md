@@ -24,6 +24,7 @@ Copy `.env.example` to `.env.local` and set these values when the official desti
 - `NEXT_PUBLIC_LOGIN_URL`: full HTTPS URL or local path for signing in. Without it, the sign-in action opens `/connexion`.
 - `NEXT_PUBLIC_CONTACT_EMAIL`: published support email address. Without it, `/contact` clearly states that contact details are pending.
 - `API_BASE_URL`: server-only Laravel origin for public member and registered-channel reads. Defaults to `https://laravel.discut.org`; do not prefix it with `NEXT_PUBLIC_`.
+- `CHATNET_CLIENT_IP_SECRET`: server-only, the same value (at least 32 characters) as Laravel's `CHATNET_CLIENT_IP_SECRET`. The sign-in, registration and session-check bridge routes reach Laravel from this server's single address, so without it every visitor shares Laravel's per-address limits (5 sign-ins a minute for the whole site, and one visitor can lock everyone out). With it, they send the visitor's address (the last `X-Forwarded-For` entry, written by the Coolify edge proxy) in `X-Discut-Client-IP` with the secret in `X-Discut-Client-IP-Key`. Unset or shorter: nothing is sent.
 
 The homepage join form requests an origin ticket directly from Laravel in the visitor's browser and opens the Discut webchat in a new tab. The public endpoint constants and URL builder are in `src/lib/chat.ts`. Laravel must authorize the Chatnet origin in both its portal registry and CORS configuration for production origin attribution to work.
 
