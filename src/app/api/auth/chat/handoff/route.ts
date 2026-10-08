@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader, type UpstreamCookies } from "@/lib/auth/cookies.server";
-import { projectChatProfile } from "@/lib/auth/chat-profile";
+import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
+import { hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { DEFAULT_CHAT_ROOM, isChatHandoffCode, MAX_HANDOFF_EXPIRES_IN } from "@/lib/chat-handoff";
@@ -10,7 +11,8 @@ export const runtime = "nodejs";
 
 const noStore = { "Cache-Control": "no-store" };
 const maxBytes = 1024;
-// Laravel refusals kept as-is: the browser then tries the legacy chat entry.
+// Laravel refusals kept as-is: the browser then tries the legacy chat entry
+// (never for PROFILE_BIRTHDATE_INVALID, handled first).
 const refusals = new Map([
   [403, "CHAT_HANDOFF_REFUSED"],
   [404, "CHAT_HANDOFF_UNAVAILABLE"],
@@ -55,6 +57,11 @@ async function readLimitedJson(request: NextRequest): Promise<unknown> {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 }
 
+async function isBirthdateRefusal(response: Response): Promise<boolean> {
+  const body: unknown = await response.json().catch(() => null);
+  return Boolean(body) && typeof body === "object" && (body as Record<string, unknown>).code === PROFILE_BIRTHDATE_INVALID;
+}
+
 function projectHandoff(value: unknown): { handoff: string; expires_in?: number } | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const data = value as Record<string, unknown>;
@@ -94,7 +101,10 @@ export async function POST(request: NextRequest) {
     if (member.status === 401 || member.status === 419) return unauthenticated();
     current = completeUpstreamCookies(mergeUpstreamCookies(current, member.headers)) ?? current;
     if (!member.ok) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
-    const profile = projectChatProfile(await member.json(), user.nickname);
+    const raw: unknown = await member.json();
+    const profile = projectChatProfile(raw, user.nickname);
+    // Age policy: no handoff and no legacy fallback until the birthdate is corrected.
+    if (!profile && hasRefusedBirthdate(raw, user.nickname)) return withBridge(error(422, PROFILE_BIRTHDATE_INVALID), cookies, current);
     if (!profile) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
 
     const refreshed = await csrfCookies(current);
@@ -109,6 +119,8 @@ export async function POST(request: NextRequest) {
     });
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
     current = completeUpstreamCookies(mergeUpstreamCookies(refreshed, upstream.headers)) ?? refreshed;
+    // Laravel's own age policy refusal (e.g. the date changed meanwhile): only its fixed code is forwarded.
+    if (upstream.status === 422 && await isBirthdateRefusal(upstream)) return withBridge(error(422, PROFILE_BIRTHDATE_INVALID), cookies, current);
     const refusal = refusals.get(upstream.status);
     if (refusal) return withBridge(error(upstream.status, refusal), cookies, current);
     if (upstream.status !== 200) return withBridge(error(503, "UNAVAILABLE"), cookies, current);

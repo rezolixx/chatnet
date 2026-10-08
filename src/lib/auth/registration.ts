@@ -1,3 +1,4 @@
+import { birthdateRefusal, type BirthdateRefusal } from "./age-policy.ts";
 import { registrationCountrySet } from "./countries.ts";
 import { passwordMessageFromUpstream, passwordPolicyError } from "./password.ts";
 
@@ -13,17 +14,14 @@ export type RegistrationInput = {
 export type RegistrationField = keyof RegistrationInput | "confirmPassword";
 export type RegistrationErrors = Partial<Record<RegistrationField, string>>;
 
-function isAtLeast16(value: string, now = new Date()): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return false;
-  const cutoff = new Date(Date.UTC(now.getUTCFullYear() - 16, now.getUTCMonth(), now.getUTCDate()));
-  return date <= cutoff;
-}
+// The shared 16-120 age policy (age-policy.ts); Laravel applies it too.
+const birthdateMessages: Record<BirthdateRefusal, string> = {
+  missing: "Entrez votre date de naissance.",
+  invalid: "Entrez une date de naissance valide.",
+  future: "Entrez une date de naissance valide.",
+  tooYoung: "Vous devez avoir au moins 16 ans.",
+  tooOld: "La date de naissance indique un âge de plus de 120 ans. Vérifiez-la.",
+};
 
 export function validateRegistration(value: unknown, confirmPassword?: string, now = new Date()): { input?: RegistrationInput; errors: RegistrationErrors } {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { errors: { nickname: "Formulaire invalide." } };
@@ -38,7 +36,8 @@ export function validateRegistration(value: unknown, confirmPassword?: string, n
   // These public rules match the existing Discut form. Laravel remains authoritative.
   if (!/^[a-zA-Z0-9_]{4,20}$/.test(nickname)) errors.nickname = "Utilisez 4 à 20 lettres, chiffres ou _.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) errors.email = "Entrez une adresse e-mail valide.";
-  if (!isAtLeast16(birthdate, now)) errors.birthdate = "Vous devez avoir au moins 16 ans.";
+  const birthdateRefused = birthdateRefusal(birthdate, now);
+  if (birthdateRefused) errors.birthdate = birthdateMessages[birthdateRefused];
   if (gender !== "Homme" && gender !== "Femme") errors.gender = "Choisissez un genre.";
   if (!pays || pays.length > 100 || !registrationCountrySet.has(pays)) errors.pays = "Choisissez un pays dans la liste.";
   const passwordError = passwordPolicyError(password, nickname);

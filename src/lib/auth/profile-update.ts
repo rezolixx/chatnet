@@ -1,3 +1,4 @@
+import { birthdateRefusal } from "./age-policy.ts";
 import { registrationCountrySet } from "./countries.ts";
 
 export type ProfileUpdateInput = { birthdate: string } | { pays: string };
@@ -5,15 +6,7 @@ export type ProfileUpdateField = "birthdate" | "pays";
 export type ProfileUpdateErrors = Partial<Record<ProfileUpdateField | "form", string>>;
 
 function validChatBirthdate(value: string, now: Date): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return false;
-  const age = now.getUTCFullYear() - year - (now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day) ? 1 : 0);
-  return age >= 16 && age <= 120;
+  return birthdateRefusal(value, now) === null;
 }
 
 export function validateProfileUpdate(value: unknown, now = new Date()): { input?: ProfileUpdateInput; errors: ProfileUpdateErrors } {

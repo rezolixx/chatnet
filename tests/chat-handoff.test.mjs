@@ -154,7 +154,7 @@ test("BFF maps Homme/Femme to M/F, defaults to Accueil and normalizes the select
 });
 
 test("BFF refuses incomplete or foreign server profiles before requesting a handoff", async () => {
-  for (const profile of [{ ...member, gender: "unknown" }, { ...member, pays: "" }, { ...member, birthdate: "2015-01-01" }, { ...member, nickname: "Other" }, { ...member, birthdate: undefined }]) {
+  for (const profile of [{ ...member, gender: "unknown" }, { ...member, pays: "" }, { ...member, nickname: "Other" }, { ...member, birthdate: undefined }, { nickname: "Other", birthdate: "1900-01-01" }]) {
     const h = bff([json(user), json(profile)]);
     const response = await h.POST(request());
     assert.equal(response.status, 503);
@@ -166,6 +166,68 @@ test("BFF refuses incomplete or foreign server profiles before requesting a hand
   const failedCsrf = bff([json(user), json(member), new Response(null, { status: 500 })]);
   assert.equal((await failedCsrf.POST(request())).status, 503);
   assert.equal(failedCsrf.calls.length, 3);
+});
+
+// ---- Age policy (16-120 from the profile birthdate): no handoff, no fallback ----
+
+// The routes use today's date: under 16 is computed, the others stay refused.
+const refusedBirthdates = [`${new Date().getUTCFullYear() - 10}-01-01`, "1900-01-01", "1905-10-07", "2999-01-01", "2023-02-29", "0000-00-00"];
+
+test("BFF answers PROFILE_BIRTHDATE_INVALID for a birthdate outside the policy, before any handoff", async () => {
+  assert.equal(allowsLegacyChatFallback(422, "PROFILE_BIRTHDATE_INVALID"), false);
+  for (const status of [403, 404, 409, 422, 429, 503]) assert.equal(allowsLegacyChatFallback(status, "PROFILE_BIRTHDATE_INVALID"), false);
+  for (const birthdate of refusedBirthdates) {
+    const h = bff([json(user), json({ ...member, birthdate })]);
+    const response = await h.POST(request());
+    assert.equal(response.status, 422, birthdate);
+    assert.deepEqual(await safePayload(response), { code: "PROFILE_BIRTHDATE_INVALID" });
+    assert.deepEqual(h.calls.map(path), ["/api/me", "/api/members/Member_01"]);
+  }
+});
+
+test("BFF forwards only the code of Laravel's own birthdate refusal; other 422s keep their mapping", async () => {
+  const h = bff(upto(json({ authenticated: false, code: "PROFILE_BIRTHDATE_INVALID", message: secret }, 422)));
+  const response = await h.POST(request());
+  assert.equal(response.status, 422);
+  assert.deepEqual(await safePayload(response), { code: "PROFILE_BIRTHDATE_INVALID" });
+  for (const body of [{ code: "INVALID_DESTINATION" }, { message: secret }, "not json"]) {
+    const other = bff(upto(new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 422 })));
+    const refused = await other.POST(request());
+    assert.equal(refused.status, 422);
+    assert.deepEqual(await safePayload(refused), { code: "CHAT_DESTINATION_REFUSED" });
+  }
+});
+
+test("chat profile and legacy prepare BFFs answer PROFILE_BIRTHDATE_INVALID too", async () => {
+  const loadWith = (name, responses) => {
+    const calls = [];
+    const route = loadAuthRoute(name, async (url, init) => {
+      calls.push({ url, ...init });
+      assert.ok(responses.length, `Unexpected network call: ${url}`);
+      return responses.shift();
+    });
+    return { route, calls };
+  };
+  const profileRequest = () => new NextRequest("https://chatnet.fr/api/auth/chat-profile", { headers: { Cookie: cookie } });
+  for (const birthdate of refusedBirthdates) {
+    const { route } = loadWith("chat-profile", [json(user), json({ ...member, birthdate })]);
+    const response = await route.GET(profileRequest());
+    assert.equal(response.status, 422, birthdate);
+    assert.deepEqual(await safePayload(response), { code: "PROFILE_BIRTHDATE_INVALID" });
+  }
+  // A missing birthdate stays an incomplete profile.
+  const missing = loadWith("chat-profile", [json(user), json({ ...member, birthdate: undefined })]);
+  assert.equal((await missing.route.GET(profileRequest())).status, 503);
+  const valid = loadWith("chat-profile", [json(user), json(member)]);
+  assert.equal((await valid.route.GET(profileRequest())).status, 200);
+
+  const prepareRequest = () => new NextRequest("https://chatnet.fr/api/auth/chat/prepare", { method: "POST", headers: { Origin: "https://chatnet.fr", Cookie: cookie } });
+  const refused = loadWith("chat/prepare", [json(user), csrf(), json({ code: "PROFILE_BIRTHDATE_INVALID", message: secret }, 422)]);
+  const response = await refused.route.POST(prepareRequest());
+  assert.equal(response.status, 422);
+  assert.deepEqual(await safePayload(response), { code: "PROFILE_BIRTHDATE_INVALID" });
+  const other = loadWith("chat/prepare", [json(user), csrf(), json({ message: secret }, 422)]);
+  assert.equal((await other.route.POST(prepareRequest())).status, 503);
 });
 
 test("BFF keeps refreshed upstream cookies in the HttpOnly bridge only", async () => {
@@ -219,7 +281,7 @@ test("BFF refuses a malformed Laravel success instead of manufacturing a handoff
 // Execute the real member card with persistent hook slots; only React's
 // scheduler, the auth context and browser IO are substituted.
 function memberCard(options = {}) {
-  const { handoff, prepare, popup = true } = options;
+  const { handoff, prepare, popup = true, profileResponse } = options;
   const selectedRoom = "selectedRoom" in options ? options.selectedRoom : "radio";
   const slots = [], effects = [], records = new Map(), events = [], calls = [], forms = [], tabs = [], timers = [], refreshes = [];
   let index = 0;
@@ -229,7 +291,7 @@ function memberCard(options = {}) {
     useRef(initial) { const slot = index++; if (!(slot in slots)) slots[slot] = { current: initial }; return slots[slot]; },
     useEffect(fn) { const slot = index++; if (!(slot in slots)) { slots[slot] = true; effects.push(fn); } },
   };
-  const responders = { "/api/auth/chat-profile": [() => json({ profile })], "/api/auth/chat/handoff": [handoff].flat(), "/api/auth/chat/prepare": [prepare].flat() };
+  const responders = { "/api/auth/chat-profile": [profileResponse ?? (() => json({ profile }))], "/api/auth/chat/handoff": [handoff].flat(), "/api/auth/chat/prepare": [prepare].flat() };
   const fetch = async (url, init) => {
     events.push(`fetch:${url}`);
     calls.push({ url, init });
@@ -437,6 +499,39 @@ test("blocked popups make no request; legacy 401 after a fallback still refreshe
   assert.deepEqual(expired.urls(), ["/api/auth/chat/handoff", "/api/auth/chat/prepare"]);
   assert.equal(expired.tabs[0].closes, 1);
   assert.deepEqual(expired.refreshes, [true]);
+});
+
+// ---- Member card and the age policy -------------------------------------------
+
+const birthdateRefusal = respond({ code: "PROFILE_BIRTHDATE_INVALID" }, 422);
+
+function assertBirthdateNotice(h) {
+  const [text, , link] = h.alert();
+  assert.match(text, /^Votre date de naissance indique un âge hors des limites autorisées \(16 à 120 ans\)\. Corrigez-la dans votre profil pour accéder au chat\.$/);
+  assert.equal(link.props.href, "/profil");
+  assert.equal(link.props.children, "Corriger ma date de naissance");
+  assert.equal(h.button(), undefined);
+}
+
+test("a profile refused for its birthdate shows how to correct it, with no join button and no request", async () => {
+  const h = memberCard({ profileResponse: birthdateRefusal });
+  await h.mount();
+  assertBirthdateNotice(h);
+  assert.deepEqual(h.urls(), []);
+  assert.equal(h.tabs.length, 0);
+});
+
+test("a birthdate refusal from the handoff or the legacy flow closes the tab and never falls back", async () => {
+  for (const options of [{ handoff: birthdateRefusal }, { handoff: respond({ code: "CHAT_ACCOUNT_UNAVAILABLE" }, 409), prepare: birthdateRefusal }]) {
+    const h = memberCard(options);
+    await h.mount();
+    await h.click();
+    assert.deepEqual(h.urls(), options.prepare ? ["/api/auth/chat/handoff", "/api/auth/chat/prepare"] : ["/api/auth/chat/handoff"]);
+    assert.equal(h.tabs[0].closes, 1);
+    assert.deepEqual(h.tabs[0].navigations, []);
+    assert.equal(h.forms.length, 0);
+    assertBirthdateNotice(h);
+  }
 });
 
 test("member card source keeps the code out of URLs, storage, cookies and logs", () => {

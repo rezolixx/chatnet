@@ -1,3 +1,5 @@
+import { ageFromBirthdate, birthdateRefusal, isAllowedAge } from "./age-policy.ts";
+
 export type ChatProfile = {
   nickname: string;
   avatar: string | null;
@@ -10,17 +12,18 @@ function text(value: unknown, maxLength: number): string | null {
   return typeof value === "string" && value.trim() && value.trim().length <= maxLength ? value.trim() : null;
 }
 
-function ageFromBirthdate(value: unknown, now = new Date()): number | null {
-  if (typeof value !== "string") return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  const age = now.getUTCFullYear() - year - (now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day) ? 1 : 0);
-  return age >= 16 && age <= 120 ? age : null;
+/**
+ * Whether the member's own profile has a birthdate the age policy refuses
+ * (outside 16-120, impossible or future date): chat entry then waits for
+ * the member to correct it, never a legacy fallback. A missing birthdate is
+ * an incomplete profile instead.
+ */
+export function hasRefusedBirthdate(value: unknown, authenticatedNickname: string, now = new Date()): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  if (raw.nickname !== authenticatedNickname) return false;
+  const refusal = birthdateRefusal(raw.birthdate, now);
+  return refusal !== null && refusal !== "missing";
 }
 
 function genderFrom(value: unknown): ChatProfile["gender"] | null {
@@ -50,6 +53,6 @@ export function projectChatProfile(value: unknown, authenticatedNickname: string
   const age = ageFromBirthdate(raw.birthdate, now);
   const gender = genderFrom(raw.gender);
   const pays = text(raw.pays, 120);
-  if (age === null || !gender || !pays) return null;
+  if (!isAllowedAge(age) || !gender || !pays) return null;
   return { nickname, avatar: safeAvatar(raw.avatar), age, gender, pays };
 }
