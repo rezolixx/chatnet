@@ -12,12 +12,50 @@ export function isChatHandoffCode(value: unknown): value is string {
   return typeof value === "string" && handoffCode.test(value);
 }
 
-// V2 statuses for which the legacy /api/auth/chat/prepare flow is tried:
-// account, disabled feature, unbound IRC account, refused destination,
-// rate limit and server errors. Never 401/419, an invalid success, nor a
-// birthdate outside the age policy (the legacy flow refuses it too: the
-// member must correct the date).
+// The only V2 answers after which the legacy /api/auth/chat/prepare flow is
+// tried, Laravel having the last word (it refuses every profile already
+// bound to its Anope account): 409 CHAT_ACCOUNT_UNAVAILABLE (chat account not
+// bound yet) and 404 (V2 switched off). Never another refusal, a network
+// error or a timeout: the member sees a clear error instead (T21). Never
+// for a birthdate outside the age policy either (T20).
 export function allowsLegacyChatFallback(status: number, code?: unknown): boolean {
   if (code === PROFILE_BIRTHDATE_INVALID) return false;
-  return status === 403 || status === 404 || status === 409 || status === 422 || status === 429 || (status >= 500 && status <= 599);
+  return status === 404 || (status === 409 && code === "CHAT_ACCOUNT_UNAVAILABLE");
+}
+
+// Why a chat entry was refused, with the message shown to the member. No
+// technical term, nothing from the request or the response.
+export const chatEntryMessages = {
+  RATE_LIMITED: "Trop de tentatives de connexion au chat. Patientez une minute, puis réessayez.",
+  CHAT_UNAVAILABLE: "Impossible de se connecter au chat pour le moment. Veuillez réessayer.",
+  ACCOUNT_UNAVAILABLE: "Votre compte ne peut pas accéder au chat pour le moment. Contactez l’assistance.",
+  CHAT_IDENTITY_V2_REQUIRED: "Votre compte chat n’a pas pu être vérifié. Réessayez plus tard ou contactez l’assistance.",
+  PROFILE_INCOMPLETE: "Votre profil ne contient pas de genre ou de pays valide, nécessaires pour accéder au chat. Vérifiez votre pays dans votre profil ou contactez l’assistance.",
+  INVALID_DESTINATION: "Votre profil ou le salon choisi ne peut pas être utilisé pour entrer dans le chat. Vérifiez votre pays dans votre profil ou contactez l’assistance.",
+  INVALID_ROOM: "Ce salon ne peut pas être ouvert depuis Chatnet. Entrez dans le chat, puis rejoignez-le depuis la liste des salons.",
+} as const;
+
+export type ChatEntryRefusal = keyof typeof chatEntryMessages;
+
+// A chat entry stopped without any fallback; `refusal` selects the message.
+export class ChatEntryFailure extends Error {
+  readonly refusal: ChatEntryRefusal;
+
+  constructor(refusal: ChatEntryRefusal) {
+    super(chatEntryMessages[refusal]);
+    this.name = "ChatEntryFailure";
+    this.refusal = refusal;
+  }
+}
+
+// A BFF refusal (handoff or legacy) as a refusal reason. 401/419 and the
+// birthdate refusal are handled before: they need their own action.
+export function chatEntryRefusal(status: number, code?: unknown): ChatEntryRefusal {
+  if (status === 403 && (code === "CHAT_HANDOFF_REFUSED" || code === "ACCOUNT_UNAVAILABLE")) return "ACCOUNT_UNAVAILABLE";
+  if (status === 409) return "CHAT_IDENTITY_V2_REQUIRED";
+  if (status === 422 && code === "PROFILE_INCOMPLETE") return "PROFILE_INCOMPLETE";
+  if (status === 422) return "INVALID_DESTINATION";
+  if (status === 400 && code === "INVALID_ROOM") return "INVALID_ROOM";
+  if (status === 429) return "RATE_LIMITED";
+  return "CHAT_UNAVAILABLE";
 }

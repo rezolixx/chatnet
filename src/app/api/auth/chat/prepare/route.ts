@@ -7,6 +7,11 @@ import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
 export const runtime = "nodejs";
 
 const noStore = { "Cache-Control": "no-store" };
+const forwardedRefusals = new Map([
+  [422, PROFILE_BIRTHDATE_INVALID],
+  [409, "CHAT_IDENTITY_V2_REQUIRED"],
+  [403, "ACCOUNT_UNAVAILABLE"],
+]);
 
 function unauthenticated() {
   const response = NextResponse.json({ code: "AUTH_REQUIRED" }, { status: 401, headers: noStore });
@@ -34,11 +39,13 @@ export async function POST(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(refreshed), "X-XSRF-TOKEN": xsrf },
     });
     if (prepared.status === 401 || prepared.status === 419) return unauthenticated();
-    // Age policy refusal: only Laravel's fixed code is forwarded, never its body.
-    if (prepared.status === 422) {
+    // Laravel's refusals (age policy; bound profile that must use V2; disabled
+    // account): only its fixed code is forwarded, never its body.
+    const forwarded = forwardedRefusals.get(prepared.status);
+    if (forwarded) {
       const refusal: unknown = await prepared.json().catch(() => null);
-      if (refusal && typeof refusal === "object" && (refusal as Record<string, unknown>).code === PROFILE_BIRTHDATE_INVALID) {
-        return NextResponse.json({ code: PROFILE_BIRTHDATE_INVALID }, { status: 422, headers: noStore });
+      if (refusal && typeof refusal === "object" && (refusal as Record<string, unknown>).code === forwarded) {
+        return NextResponse.json({ code: forwarded }, { status: prepared.status, headers: noStore });
       }
     }
     if (!prepared.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });

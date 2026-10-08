@@ -8,11 +8,11 @@ import { Icon } from "@/components/ui/Icons";
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
 import type { ChatProfile } from "@/lib/auth/chat-profile";
 import { buildAuthenticatedChatUrl } from "@/lib/chat";
-import { allowsLegacyChatFallback, CHAT_HANDOFF_REDEEM_URL, DEFAULT_CHAT_ROOM, isChatHandoffCode } from "@/lib/chat-handoff";
+import { allowsLegacyChatFallback, CHAT_HANDOFF_REDEEM_URL, ChatEntryFailure, chatEntryMessages, chatEntryRefusal, DEFAULT_CHAT_ROOM, isChatHandoffCode } from "@/lib/chat-handoff";
 import { roomJoinName } from "@/lib/rooms";
 
 const unavailable = "Votre profil chat est temporairement indisponible. Veuillez réessayer.";
-const connectionError = "Impossible de se connecter au chat pour le moment. Veuillez réessayer.";
+const connectionError = chatEntryMessages.CHAT_UNAVAILABLE;
 // Birthdate outside the 16-120 age policy: entry waits for the member to correct it.
 const birthdateRefused = "Votre date de naissance indique un âge hors des limites autorisées (16 à 120 ans). Corrigez-la dans votre profil pour accéder au chat.";
 
@@ -70,9 +70,17 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
           await refreshUser(true);
           return;
         }
-        if (response.status === 422 && responseCode(await response.json().catch(() => null)) === PROFILE_BIRTHDATE_INVALID) {
-          if (!controller.signal.aborted) setBirthdateBlocked(true);
-          return;
+        if (response.status === 422) {
+          const code = responseCode(await response.json().catch(() => null));
+          if (code === PROFILE_BIRTHDATE_INVALID) {
+            if (!controller.signal.aborted) setBirthdateBlocked(true);
+            return;
+          }
+          // Gender or country to complete: no join button, no fallback.
+          if (code === "PROFILE_INCOMPLETE") {
+            if (!controller.signal.aborted) setError(chatEntryMessages.PROFILE_INCOMPLETE);
+            return;
+          }
         }
         if (!response.ok) throw new Error("Profile unavailable");
         const data: unknown = await response.json();
@@ -99,7 +107,7 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
     setError("");
     const room = selectedRoom === undefined ? DEFAULT_CHAT_ROOM : roomJoinName(selectedRoom);
     if (!room) {
-      setError(connectionError);
+      setError(chatEntryMessages.INVALID_ROOM);
       return;
     }
     // The tab must be opened by the click, before any request. Its unique
@@ -140,8 +148,8 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
           signal: attempt.signal,
           ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body }),
         });
-        // 422 bodies are read for their code only (age policy refusal).
-        const text = response.ok || response.status === 422 ? await response.text() : "";
+        // Refusal bodies are the BFF's own { code } only.
+        const text = await response.text();
         let data: unknown = null;
         try { data = JSON.parse(text); }
         catch { /* Rejected by the response validation. */ }
@@ -170,8 +178,10 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
 
     try {
       const handoff = await post("/api/auth/chat/handoff", JSON.stringify({ room }), handoffTimeout);
-      if (handoff && (handoff.status === 401 || handoff.status === 419)) return await sessionExpired();
-      if (handoff && handoff.status >= 200 && handoff.status < 300) {
+      // Network error or timeout: retryable, never a legacy fallback.
+      if (!handoff) throw new ChatEntryFailure("CHAT_UNAVAILABLE");
+      if (handoff.status === 401 || handoff.status === 419) return await sessionExpired();
+      if (handoff.status >= 200 && handoff.status < 300) {
         // An unexpected success is an error, never a silent legacy fallback.
         const code = handoff.data && typeof handoff.data === "object" ? (handoff.data as Record<string, unknown>).handoff : undefined;
         if (!isChatHandoffCode(code)) throw new Error("Invalid chat handoff");
@@ -181,14 +191,18 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
         blankWindowRef.current = null;
         return;
       }
-      if (handoff && handoff.status === 422 && responseCode(handoff.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
-      if (handoff && !allowsLegacyChatFallback(handoff.status, responseCode(handoff.data))) throw new Error("Chat handoff refused");
+      const handoffCode = responseCode(handoff.data);
+      if (handoff.status === 422 && handoffCode === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
+      if (!allowsLegacyChatFallback(handoff.status, handoffCode)) throw new ChatEntryFailure(chatEntryRefusal(handoff.status, handoffCode));
 
-      // Legacy rollout fallback, in the same tab and for the same room.
+      // Legacy flow, in the same tab and for the same room, only for an
+      // account V2 cannot serve yet or with V2 off; Laravel refuses it to
+      // every bound profile (CHAT_IDENTITY_V2_REQUIRED).
       const prepared = await post("/api/auth/chat/prepare", undefined, prepareTimeout);
-      if (prepared && (prepared.status === 401 || prepared.status === 419)) return await sessionExpired();
-      if (prepared && prepared.status === 422 && responseCode(prepared.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
-      if (!prepared || prepared.status < 200 || prepared.status >= 300) throw new Error("Chat preparation unavailable");
+      if (!prepared) throw new ChatEntryFailure("CHAT_UNAVAILABLE");
+      if (prepared.status === 401 || prepared.status === 419) return await sessionExpired();
+      if (prepared.status === 422 && responseCode(prepared.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
+      if (prepared.status < 200 || prepared.status >= 300) throw new ChatEntryFailure(chatEntryRefusal(prepared.status, responseCode(prepared.data)));
       const data = prepared.data;
       if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid chat preparation");
       const legacy = data as Record<string, unknown>;
@@ -202,10 +216,10 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
         ville: profile.pays,
       }, legacy.token, legacy.ticket as string | undefined, room);
       blankWindowRef.current = null;
-    } catch {
+    } catch (failure) {
       if (!submitted && !chatWindow.closed) chatWindow.close();
       blankWindowRef.current = null;
-      if (requestRef.current === controller) setError(connectionError);
+      if (requestRef.current === controller) setError(failure instanceof ChatEntryFailure ? failure.message : connectionError);
     } finally {
       if (requestRef.current === controller) {
         requestRef.current = null;
