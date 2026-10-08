@@ -1,4 +1,5 @@
 import { registrationCountrySet } from "./countries.ts";
+import { passwordMessageFromUpstream, passwordPolicyError } from "./password.ts";
 
 export type RegistrationInput = {
   nickname: string;
@@ -40,7 +41,8 @@ export function validateRegistration(value: unknown, confirmPassword?: string, n
   if (!isAtLeast16(birthdate, now)) errors.birthdate = "Vous devez avoir au moins 16 ans.";
   if (gender !== "Homme" && gender !== "Femme") errors.gender = "Choisissez un genre.";
   if (!pays || pays.length > 100 || !registrationCountrySet.has(pays)) errors.pays = "Choisissez un pays dans la liste.";
-  if (typeof password !== "string" || password.length < 6 || password.length > 1024) errors.password = "Utilisez au moins 6 caractères.";
+  const passwordError = passwordPolicyError(password, nickname);
+  if (passwordError) errors.password = passwordError;
   if (confirmPassword !== undefined && password !== confirmPassword) errors.confirmPassword = "Les mots de passe ne correspondent pas.";
   if (Object.keys(errors).length) return { errors };
   return { input: { nickname, email, birthdate, gender: gender as RegistrationInput["gender"], pays, password: password as string }, errors };
@@ -52,7 +54,6 @@ const fieldMessages: Partial<Record<RegistrationField, string>> = {
   birthdate: "Vérifiez votre date de naissance.",
   gender: "Vérifiez le genre choisi.",
   pays: "Vérifiez votre pays.",
-  password: "Vérifiez votre mot de passe.",
 };
 
 export function upstreamRegistrationErrors(value: unknown): RegistrationErrors {
@@ -62,6 +63,10 @@ export function upstreamRegistrationErrors(value: unknown): RegistrationErrors {
   const result: RegistrationErrors = {};
   for (const key of Object.keys(fieldMessages) as RegistrationField[]) {
     if (Object.hasOwn(errors, key)) result[key] = fieldMessages[key];
+  }
+  if (Object.hasOwn(errors, "password")) {
+    const messages = (errors as Record<string, unknown>).password;
+    result.password = passwordMessageFromUpstream(Array.isArray(messages) ? messages[0] : messages);
   }
   return result;
 }
@@ -76,7 +81,14 @@ export function upstreamRegistrationConflict(value: unknown): RegistrationErrors
 }
 
 export function registrationFailure(status: number, body?: unknown): { status: number; code: string; message: string; errors?: RegistrationErrors } {
-  if (status === 422) return { status, code: "VALIDATION_ERROR", message: "Vérifiez les champs du formulaire.", errors: upstreamRegistrationErrors(body) };
+  if (status === 422) {
+    const errors = upstreamRegistrationErrors(body);
+    // NickServ's own refusal arrives as a message without field errors.
+    if (!errors.password && body && typeof body === "object" && (body as Record<string, unknown>).message === "Mot de passe refusé par le service IRC, choisis-en un autre.") {
+      errors.password = "Ce mot de passe a été refusé par le service de chat. Choisissez-en un autre.";
+    }
+    return { status, code: "VALIDATION_ERROR", message: "Vérifiez les champs du formulaire.", errors };
+  }
   if (status === 409) return { status, code: "CONFLICT", message: "Ce pseudo ou cet e-mail est déjà utilisé.", errors: upstreamRegistrationConflict(body) };
   if (status === 429) return { status, code: "RATE_LIMITED", message: "Trop de tentatives. Réessayez plus tard." };
   if (status === 419) return { status, code: "SESSION_EXPIRED", message: "Session expirée. Réessayez." };

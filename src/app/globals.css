@@ -139,6 +139,7 @@ img { max-width: 100%; }
 .gender-options label:focus-within { outline: 3px solid var(--cyan); outline-offset: 2px; }
 .gender-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .field-error { color: #b42318; font-size: 11px; line-height: 1.45; }
+.field-hint { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .chat-join-error { margin: 0; padding: 10px 12px; border: 1px solid #efc3bf; border-radius: 8px; background: #fff4f3; color: #9d2720; font-size: 12px; line-height: 1.5; }
 .chat-join-submit { width: 100%; min-height: 50px; margin-top: 3px; font-size: 14px; }
 .chat-join-submit:disabled { opacity: .72; cursor: wait; transform: none; }

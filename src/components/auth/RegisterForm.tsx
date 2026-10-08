@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registrationCountries } from "@/lib/auth/countries";
 import { validateRegistration, type RegistrationErrors, type RegistrationField } from "@/lib/auth/registration";
+import { passwordHint, passwordPolicyError } from "@/lib/auth/password";
 
 type FormValues = { nickname: string; email: string; birthdate: string; gender: string; pays: string; password: string; confirmPassword: string };
 const initial: FormValues = { nickname: "", email: "", birthdate: "", gender: "", pays: "", password: "", confirmPassword: "" };
@@ -23,11 +24,24 @@ export function RegisterForm() {
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
+  // Password feedback starts once the field is left, then follows every keystroke.
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
   function change(key: keyof FormValues, value: string) {
-    setValues((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({ ...current, [key]: undefined }));
+    const next = { ...values, [key]: value };
+    setValues(next);
+    setErrors((current) => ({
+      ...current,
+      [key]: undefined,
+      ...(passwordTouched && next.password && (key === "password" || key === "nickname") ? { password: passwordPolicyError(next.password, next.nickname.trim()) } : {}),
+    }));
     setFormError("");
+  }
+
+  function blur(key: RegistrationField) {
+    if (key !== "password" || !values.password) return;
+    setPasswordTouched(true);
+    setErrors((current) => ({ ...current, password: passwordPolicyError(values.password, values.nickname.trim()) }));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -36,6 +50,7 @@ export function RegisterForm() {
     const { input, errors: nextErrors } = validateRegistration(values, values.confirmPassword);
     setErrors(nextErrors);
     setFormError("");
+    setPasswordTouched(true);
     if (!input) {
       const first = Object.keys(nextErrors)[0];
       document.getElementById(`register-${first}`)?.focus();
@@ -88,8 +103,9 @@ export function RegisterForm() {
       </div>
       {fields.slice(3).map(({ key, label, type, autoComplete }) => <div className="chat-join-field" key={key}>
         <label htmlFor={`register-${key}`}>{label}</label>
-        <input id={`register-${key}`} name={key} type={type} autoComplete={autoComplete} value={values[key]} onChange={(event) => change(key, event.target.value)} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `register-${key}-error` : undefined} required />
-        {errors[key] && <span className="field-error" id={`register-${key}-error`}>{errors[key]}</span>}
+        <input id={`register-${key}`} name={key} type={type} autoComplete={autoComplete} value={values[key]} onChange={(event) => change(key, event.target.value)} onBlur={() => blur(key)} aria-invalid={Boolean(errors[key])} aria-describedby={[key === "password" && "register-password-hint", errors[key] && `register-${key}-error`].filter(Boolean).join(" ") || undefined} required minLength={key === "password" ? 10 : undefined} />
+        {key === "password" && <p className="field-hint" id="register-password-hint">{passwordHint}</p>}
+        {errors[key] && <span className="field-error" id={`register-${key}-error`} role={key === "password" ? "alert" : undefined}>{errors[key]}</span>}
       </div>)}
       {formError && <p className="chat-join-error" role="alert">{formError}</p>}
       <button className="button button-primary auth-submit" type="submit" disabled={pending}>{pending ? "Création du compte…" : "Créer mon compte"}</button>

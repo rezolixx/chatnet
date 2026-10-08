@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useAuth } from "./AuthProvider";
-import { validatePasswordInput } from "@/lib/auth/password";
+import { passwordHint, passwordPolicyError, validatePasswordInput } from "@/lib/auth/password";
 
 export function PasswordChangeForm({ nickname }: { nickname: string }) {
   const { refreshUser } = useAuth();
@@ -10,6 +10,8 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
   const [expanded, setExpanded] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  // Feedback starts once the field is left, then follows every keystroke.
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -19,8 +21,10 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
     if (pending.current) return;
     setError("");
     setSuccess("");
-    const checked = validatePasswordInput({ new_password: password });
-    if (!checked.input) { setError(checked.errors.new_password || "Vérifiez le nouveau mot de passe."); return; }
+    setTouched(true);
+    const checked = validatePasswordInput({ new_password: password }, nickname);
+    // The rule broken is shown under the field (liveError), not repeated here.
+    if (!checked.input) { if (!password) setError("Entrez un nouveau mot de passe."); return; }
     if (password !== confirmation) { setError("La confirmation ne correspond pas au nouveau mot de passe."); return; }
     pending.current = true;
     setSubmitting(true);
@@ -37,8 +41,14 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
         await refreshUser(true);
         return;
       }
+      if (response.status === 422) {
+        // The BFF only returns its own fixed messages, never upstream text.
+        const result: { errors?: { new_password?: unknown } } = await response.json().catch(() => ({}));
+        setError(typeof result.errors?.new_password === "string" ? result.errors.new_password : "Vérifiez le nouveau mot de passe.");
+        return;
+      }
       if (!response.ok) {
-        setError(response.status === 422 ? "Vérifiez le nouveau mot de passe (6 caractères minimum)." : response.status === 429 ? "Trop de tentatives. Réessayez plus tard." : response.status === 409 ? "La session a changé. Rechargez le profil." : "Modification non confirmée. Vérifiez vos accès avant de réessayer.");
+        setError(response.status === 429 ? "Trop de tentatives. Réessayez plus tard." : response.status === 409 ? "La session a changé. Rechargez le profil." : "Modification non confirmée. Vérifiez vos accès avant de réessayer.");
         return;
       }
       const result: { changed?: boolean; session?: string } = await response.json();
@@ -56,20 +66,23 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
     finally {
       setPassword("");
       setConfirmation("");
+      setTouched(false);
       pending.current = false;
       setSubmitting(false);
     }
   }
 
+  const liveError = touched && password ? passwordPolicyError(password, nickname) : undefined;
+
   return <section className="profile-edit-panel" aria-labelledby="password-change-heading">
     <h3 id="password-change-heading">Sécurité du compte</h3>
     <button type="button" className="button button-outline profile-edit-close" aria-expanded={expanded} aria-controls="password-change-form" onClick={() => setExpanded((current) => !current)} disabled={submitting}>{expanded ? "Fermer" : "Modifier le mot de passe"}</button>
     {expanded && <>
-    <p>Choisissez un nouveau mot de passe d’au moins 6 caractères pour votre compte.</p>
-    <form id="password-change-form" onSubmit={submit} aria-busy={submitting}>
+    <p>Choisissez un nouveau mot de passe pour votre compte.</p>
+    <form id="password-change-form" onSubmit={submit} aria-busy={submitting} noValidate>
       <div className="profile-edit-grid">
-        <div className="chat-join-field"><label htmlFor="new-password">Nouveau mot de passe</label><input id="new-password" name="new_password" type="password" autoComplete="new-password" required minLength={6} maxLength={1024} value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} aria-describedby={error ? "password-change-error" : undefined} /></div>
-        <div className="chat-join-field"><label htmlFor="confirm-new-password">Confirmer le nouveau mot de passe</label><input id="confirm-new-password" name="confirmation" type="password" autoComplete="new-password" required maxLength={1024} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={submitting} aria-describedby={error ? "password-change-error" : undefined} /></div>
+        <div className="chat-join-field"><label htmlFor="new-password">Nouveau mot de passe</label><input id="new-password" name="new_password" type="password" autoComplete="new-password" required minLength={10} value={password} onChange={(event) => setPassword(event.target.value)} onBlur={() => { if (password) setTouched(true); }} disabled={submitting} aria-invalid={Boolean(liveError)} aria-describedby={["new-password-hint", liveError && "new-password-error", error && "password-change-error"].filter(Boolean).join(" ")} /><p id="new-password-hint" className="field-hint">{passwordHint}</p>{liveError && <span id="new-password-error" className="field-error" role="alert">{liveError}</span>}</div>
+        <div className="chat-join-field"><label htmlFor="confirm-new-password">Confirmer le nouveau mot de passe</label><input id="confirm-new-password" name="confirmation" type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={submitting} aria-describedby={error ? "password-change-error" : undefined} /></div>
         <button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Modification…" : "Modifier le mot de passe"}</button>
       </div>
     </form>

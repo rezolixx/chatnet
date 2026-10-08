@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader, type UpstreamCookies } from "@/lib/auth/cookies.server";
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
-import { safePasswordErrors, validatePasswordInput, type PasswordErrors } from "@/lib/auth/password";
+import { passwordPolicyError, safePasswordErrors, validatePasswordInput, type PasswordErrors } from "@/lib/auth/password";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
     if (request.headers.get("x-chatnet-profile-nickname") !== user.nickname) {
       return withBridge(error(409, "STALE_PROFILE", "La session a changé. Rechargez le profil."), cookies, currentCookies);
     }
+    const nicknameError = passwordPolicyError(checked.input.new_password, user.nickname);
+    if (nicknameError) return withBridge(error(422, "VALIDATION_ERROR", "Vérifiez le nouveau mot de passe.", { new_password: nicknameError }), cookies, currentCookies);
 
     const refreshed = await csrfCookies(currentCookies);
     const xsrf = refreshed && xsrfHeader(refreshed);
