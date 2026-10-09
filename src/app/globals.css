@@ -458,6 +458,11 @@ img { max-width: 100%; }
 .profile-edit-grid select:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .profile-edit-grid select[aria-invalid="true"] { border-color: #d14a44; }
 .profile-edit-grid .button { justify-self: start; margin-top: 5px; font-size: 12px; }
+.profile-danger-panel { border-color: #efc3bf; }
+.button-danger { background: #b42318; color: #fff; }
+.button-danger:hover { background: #912018; }
+.button-danger:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+:root[data-theme="dark"] .profile-danger-panel { border-color: #7b383c; }
 .profile-edit-close { justify-self: start; font-size: 12px; }
 .profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 25px; }
 .profile-detail { min-height: 75px; padding: 15px 17px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
