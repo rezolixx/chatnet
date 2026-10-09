@@ -6,6 +6,7 @@ import { useAuth } from "./AuthProvider";
 import { AvatarEditor } from "./AvatarEditor";
 import { ProfileEditForm } from "./ProfileEditForm";
 import { PasswordChangeForm } from "./PasswordChangeForm";
+import { AccountDeletionForm } from "./AccountDeletionForm";
 import type { OwnProfile } from "@/lib/auth/own-profile";
 
 function ProfileSkeleton() {
@@ -63,5 +64,6 @@ export function ProfileContent() {
     {editing && <ProfileEditForm profile={profile} onSaved={setProfile} onCancel={() => setEditing(false)} />}
     <div className="profile-grid">{details.map(([label, value]) => <div className="profile-detail" key={label}><span>{label}</span><strong>{display(value)}</strong></div>)}</div>
     <PasswordChangeForm key={profile.nickname} nickname={profile.nickname} />
+    <AccountDeletionForm key={`delete-${profile.nickname}`} nickname={profile.nickname} />
   </article>;
 }
