@@ -9,7 +9,7 @@ import { BrandLogo } from "@/components/layout/BrandLogo";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ActionLink } from "@/components/ui/ActionLink";
 import { Icon } from "@/components/ui/Icons";
-import { joinHref, site } from "@/lib/site";
+import { discordUrl, joinHref, site } from "@/lib/site";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -32,13 +32,14 @@ export function Navbar() {
       ? <div className="nav-account"><Link href="/profil" className="nav-account-person" onClick={() => setOpen(false)} aria-current={pathname === "/profil" ? "page" : undefined}><MemberAvatar member={user} /><span>{user.nickname}</span></Link><button type="button" className="nav-logout" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Déconnexion…" : "Se déconnecter"}</button></div>
       : <div className="nav-guest"><Link href="/connexion" className="nav-login" onClick={() => setOpen(false)} aria-current={pathname === "/connexion" ? "page" : undefined}>Se connecter</Link><Link href="/inscription" className="button button-outline nav-signup" onClick={() => setOpen(false)} aria-current={pathname === "/inscription" ? "page" : undefined}>S&apos;inscrire</Link></div>;
   return (
-    <header className="site-header">
+    <header className={!loading && user ? "site-header site-header-member" : "site-header"}>
       <div className="container nav-inner">
         <BrandLogo />
         <nav className="desktop-nav" aria-label="Navigation principale">
           {navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "nav-link active" : "nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>)}
         </nav>
         <div className="nav-actions">
+          <a href={discordUrl} target="_blank" rel="noopener noreferrer" className="icon-button nav-discord" aria-label="Rejoindre notre Discord" title="Rejoindre notre Discord"><Icon name="discord" size={19} /></a>
           <ThemeToggle />
           <div className="nav-auth-desktop">{accountAction}</div>
           <ActionLink href={joinHref} className="button button-primary nav-join">Rejoindre Chatnet <Icon name="arrow" size={16} /></ActionLink>
@@ -48,6 +49,7 @@ export function Navbar() {
       <nav id="mobile-navigation" className={`mobile-nav ${open ? "open" : ""}`} aria-label="Navigation mobile" inert={!open}>
         <div className="container mobile-nav-inner">
           {navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "mobile-nav-link active" : "mobile-nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}<Icon name="chevron" size={18} /></Link>)}
+          <a href={discordUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="mobile-nav-link mobile-nav-discord" aria-label="Rejoindre notre Discord" title="Rejoindre notre Discord"><span><Icon name="discord" size={18} />Rejoindre notre Discord</span><Icon name="chevron" size={18} /></a>
           <div className="mobile-nav-actions"><div className="nav-auth-mobile">{accountAction}</div><ActionLink href={joinHref} className="button button-primary">Rejoindre Chatnet</ActionLink></div>
         </div>
       </nav>
