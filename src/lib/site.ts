@@ -27,6 +27,7 @@ export const loginUrl = configuredDestination(process.env.NEXT_PUBLIC_LOGIN_URL)
 export const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || null;
 export const joinHref = "/#rejoindre";
 export const loginHref = loginUrl || "/connexion";
+export const discordUrl = "https://discord.com/invite/N9YnBNu939";
 
 export function roomHref(): string {
   return joinHref;
