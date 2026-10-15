@@ -75,5 +75,5 @@ test("edit UI has only birthdate and pays; description and avatar behavior remai
   assert.match(editor, /await refreshUser\(\)/);
   assert.doesNotMatch(editor, /new_email|description|nickname.*onChange|gender.*onChange|update-avatar/);
   assert.doesNotMatch(profile, /profile\.description|<h3>Description<\/h3>/);
-  assert.match(avatar, /fetch\("\/api\/auth\/avatar"/);
+  assert.match(avatar, /memberFetch\("\/api\/auth\/avatar"/);
 });

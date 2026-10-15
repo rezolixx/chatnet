@@ -3,16 +3,22 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AccountRefusalError, type AccountRefusal } from "@/lib/auth/account-restriction";
 import { useAuth } from "./AuthProvider";
+import { AccountRestrictionPanel } from "./AccountRestrictionPanel";
 
 export function LoginForm({ registered = false }: { registered?: boolean }) {
   const router = useRouter();
-  const { user, loading, login } = useAuth();
+  const { user, loading, login, accountRefusal, clearAccountRefusal } = useAuth();
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<{ identity?: string; password?: string }>({});
   const [formError, setFormError] = useState("");
+  // Refusal of this sign-in (Ban / Suspension, or restriction state
+  // unreadable); otherwise the latest one of a member request.
+  const [refusal, setRefusal] = useState<AccountRefusal | null>(null);
+  const shownRefusal = refusal ?? accountRefusal;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,6 +29,8 @@ export function LoginForm({ registered = false }: { registered?: boolean }) {
     };
     setErrors(nextErrors);
     setFormError("");
+    setRefusal(null);
+    clearAccountRefusal();
     if (nextErrors.identity || nextErrors.password) {
       document.getElementById(nextErrors.identity ? "auth-identity" : "auth-password")?.focus();
       return;
@@ -33,6 +41,7 @@ export function LoginForm({ registered = false }: { registered?: boolean }) {
       router.push("/");
       router.refresh();
     } catch (error) {
+      if (error instanceof AccountRefusalError) { setRefusal(error.refusal); return; }
       setFormError(error instanceof Error ? error.message : "Connexion temporairement indisponible.");
     } finally { setPassword(""); setPending(false); }
   }
@@ -48,6 +57,7 @@ export function LoginForm({ registered = false }: { registered?: boolean }) {
     <form onSubmit={submit} noValidate>
       <div className="chat-join-field"><label htmlFor="auth-identity">Pseudo ou e-mail</label><input id="auth-identity" type="text" autoComplete="username" value={identity} onChange={(event) => setIdentity(event.target.value)} aria-invalid={Boolean(errors.identity)} aria-describedby={errors.identity ? "auth-identity-error" : undefined} maxLength={320} required />{errors.identity && <span id="auth-identity-error" className="field-error">{errors.identity}</span>}</div>
       <div className="chat-join-field"><label htmlFor="auth-password">Mot de passe</label><input id="auth-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "auth-password-error" : undefined} required />{errors.password && <span id="auth-password-error" className="field-error">{errors.password}</span>}<Link className="auth-forgot" href="/mot-de-passe-oublie">Mot de passe oublié ?</Link></div>
+      {shownRefusal && <AccountRestrictionPanel refusal={shownRefusal} />}
       {formError && <p className="chat-join-error" role="alert">{formError}</p>}
       <button className="button button-primary auth-submit" type="submit" disabled={pending}>{pending ? "Connexion…" : "Se connecter"}</button>
     </form>

@@ -413,7 +413,7 @@ function memberCard(options = {}) {
   const alert = () => elements(render(), (el) => el.props?.role === "alert")[0]?.props.children;
   let cleanups = [];
   return {
-    events, calls, forms, tabs, timers, refreshes, button, alert,
+    events, calls, forms, tabs, timers, refreshes, button, alert, load,
     async mount() { render(); cleanups = effects.map((fn) => fn()); await new Promise((r) => setImmediate(r)); },
     unmount() { cleanups.forEach((fn) => fn?.()); },
     click() { return button().props.onClick(); },
@@ -668,4 +668,50 @@ test("member card source keeps the code out of URLs, storage, cookies and logs",
   assert.doesNotMatch(source, /localStorage|sessionStorage|document\.cookie|console\.|"_blank"/);
   assert.deepEqual(source.match(/location\.href = \w+/g), ["location.href = buildAuthenticatedChatUrl"]);
   assert.doesNotMatch(source, /searchParams|useState\([^)]*handoff/i);
+});
+
+// Ban / Suspension: the API's refusal stops the entry. No tab left open, no
+// legacy or guest entry, the member state is cleared site-wide.
+const restricted = {
+  ACCOUNT_SUSPENDED: [{ code: "ACCOUNT_SUSPENDED", restriction: { kind: "temporary_suspension", reason: "Spam", expires_at: "2026-10-22T10:00:00Z" } }, 403, /^Compte suspendu\. Votre compte est suspendu temporairement, jusqu’au .+\. Motif : Spam$/],
+  ACCOUNT_BANNED: [{ code: "ACCOUNT_BANNED", restriction: { kind: "permanent_ban", reason: "Harcèlement", expires_at: null } }, 403, /^Compte banni définitivement\. Votre compte est banni définitivement\. Motif : Harcèlement$/],
+  ACCOUNT_RESTRICTION_UNAVAILABLE: [{ code: "ACCOUNT_RESTRICTION_UNAVAILABLE" }, 503, /^Service momentanément indisponible\./],
+};
+
+test("a restricted handoff closes the tab, shows the refusal and never falls back to legacy or guest", async () => {
+  for (const [code, [body, status, message]] of Object.entries(restricted)) {
+    const h = memberCard({ handoff: respond(body, status), prepare: legacy });
+    const announced = [];
+    h.load("lib/auth/member-fetch").onAccountRefusal((refusal) => announced.push(refusal.code));
+    await h.mount();
+    await h.click();
+    assert.deepEqual(h.urls(), ["/api/auth/chat/handoff"], code);
+    assert.equal(h.tabs[0].closes, 1);
+    assert.deepEqual(h.tabs[0].navigations, []);
+    assert.equal(h.forms.length, 0);
+    assert.match(h.alert(), message);
+    assert.deepEqual(announced, [code], "AuthProvider is told once");
+    assert.deepEqual(h.refreshes, []);
+    assert.deepEqual(quiet(h.events), []);
+  }
+});
+
+test("a restriction from the legacy preparation stops the entry too", async () => {
+  const [body, status, message] = restricted.ACCOUNT_BANNED;
+  const h = memberCard({ handoff: respond({ code: "CHAT_ACCOUNT_UNAVAILABLE" }, 409), prepare: respond(body, status) });
+  await h.mount();
+  await h.click();
+  assert.deepEqual(h.urls(), ["/api/auth/chat/handoff", "/api/auth/chat/prepare"]);
+  assert.equal(h.tabs[0].closes, 1);
+  assert.deepEqual(h.tabs[0].navigations, []);
+  assert.match(h.alert(), message);
+});
+
+test("a refused chat profile shows the refusal with no join button and no request", async () => {
+  const [body, status, message] = restricted.ACCOUNT_SUSPENDED;
+  const h = memberCard({ profileResponse: respond(body, status) });
+  await h.mount();
+  assert.equal(h.button(), undefined);
+  assert.match(h.alert(), message);
+  assert.deepEqual(h.urls(), []);
 });

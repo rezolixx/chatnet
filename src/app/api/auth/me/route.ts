@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, readBridgeCookies, setBridgeCookies } from "@/lib/auth/cookies.server";
 import { laravelMe, projectSafeUser } from "@/lib/auth/laravel.server";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const upstream = await laravelMe(cookies, request);
+    const upstreamRefusal = await accountRefusalResponse(upstream.response);
+    if (upstreamRefusal) return upstreamRefusal;
     if (upstream.response.status === 401 || upstream.response.status === 419) {
       const response = NextResponse.json({ code: "AUTH_REQUIRED" }, { status: 401, headers: noStore });
       clearBridgeCookies(response);

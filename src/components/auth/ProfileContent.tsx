@@ -8,6 +8,7 @@ import { ProfileEditForm } from "./ProfileEditForm";
 import { PasswordChangeForm } from "./PasswordChangeForm";
 import { AccountDeletionForm } from "./AccountDeletionForm";
 import type { OwnProfile } from "@/lib/auth/own-profile";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 function ProfileSkeleton() {
   return <div className="profile-card profile-skeleton" aria-label="Chargement du profil" aria-busy="true">
@@ -31,7 +32,7 @@ export function ProfileContent() {
     if (loading) return;
     if (!nickname) { router.replace("/connexion"); return; }
     const controller = new AbortController();
-    fetch("/api/auth/profile", { cache: "no-store", signal: controller.signal })
+    memberFetch("/api/auth/profile", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (response.status === 401) {
           await refreshUser(true);

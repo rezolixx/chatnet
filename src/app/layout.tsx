@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Navbar } from "@/components/layout/Navbar";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { AccountRestrictionNotice } from "@/components/auth/AccountRestrictionNotice";
 import { Footer } from "@/components/layout/Footer";
 import { site } from "@/lib/site";
 import "./globals.css";
@@ -29,5 +30,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#071d37" }] };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="fr" className={geist.variable} suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('chatnet-theme');document.documentElement.dataset.theme=t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'}catch(e){}" }} /></head><body><a className="skip-link" href="#main-content">Aller au contenu</a><AuthProvider><Navbar /><main id="main-content">{children}</main><Footer /></AuthProvider></body></html>;
+  return <html lang="fr" className={geist.variable} suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('chatnet-theme');document.documentElement.dataset.theme=t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'}catch(e){}" }} /></head><body><a className="skip-link" href="#main-content">Aller au contenu</a><AuthProvider><Navbar /><main id="main-content"><AccountRestrictionNotice />{children}</main><Footer /></AuthProvider></body></html>;
 }

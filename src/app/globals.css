@@ -491,3 +491,20 @@ img { max-width: 100%; }
 .profile-skeleton-line.short { width: 120px; height: 12px; margin-top: 11px; }
 .profile-skeleton-panel { height: 75px; }
 @media (max-width: 600px) { .profile-card { padding: 22px; }.profile-head { flex-direction: column; text-align: center; }.profile-edit-grid, .profile-grid { grid-template-columns: 1fr; } }
+
+/* Member Ban / Suspension notice (AccountRestrictionPanel) */
+.account-restriction-notice { padding-top: 20px; }
+.account-restriction { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid #efc3bf; border-radius: 12px; background: #fff4f3; color: var(--foreground); font-size: 13px; line-height: 1.6; text-align: left; }
+.account-restriction-icon { flex: none; margin-top: 2px; color: #b4322a; }
+.account-restriction-body { display: grid; flex: 1; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.account-restriction-body p { margin: 0; }
+.account-restriction-title { color: #9d2720; font-size: 14px; font-weight: 750; }
+.account-restriction-note { color: var(--muted); font-size: 12px; }
+.account-restriction-note a { color: var(--accent-text); font-weight: 700; text-decoration: underline; }
+.account-restriction-action { justify-self: start; min-height: 38px; margin-top: 6px; padding: 8px 14px; }
+.account-restriction-close { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.account-restriction-close:hover { color: var(--foreground); background: rgba(157, 39, 32, .08); }
+.account-restriction-close:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.auth-card .account-restriction, .chat-join-card .account-restriction { margin-bottom: 4px; }
+:root[data-theme="dark"] .account-restriction { border-color: #7b383c; background: #3b2029; }
+:root[data-theme="dark"] .account-restriction-icon, :root[data-theme="dark"] .account-restriction-title { color: #ffb6ae; }

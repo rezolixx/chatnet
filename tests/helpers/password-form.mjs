@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
 import * as passwordPolicy from "../../src/lib/auth/password.ts";
+import { memberModules } from "./member-modules.mjs";
 
 const require = createRequire(import.meta.url);
 const source = new URL("../../src/components/auth/PasswordChangeForm.tsx", import.meta.url);
@@ -27,7 +28,9 @@ export function passwordForm(fetch = async () => { throw new Error("Unexpected f
       return slots[slot];
     },
   };
+  const members = memberModules(fetch);
   const localRequire = (name) => {
+    if (name in members) return members[name];
     if (name === "react") return hooks;
     if (name === "./AuthProvider") return { useAuth: () => ({ refreshUser: async (invalidate) => { refreshes.push(invalidate); } }) };
     if (name === "@/lib/auth/password") return passwordPolicy;

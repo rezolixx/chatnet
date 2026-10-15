@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, readBridgeCookies, upstreamCookieHeader } from "@/lib/auth/cookies.server";
 import { csrfCookies, fetchLaravel, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
+import { isAccountRestriction, readAccountRefusal } from "@/lib/auth/account-restriction";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,8 @@ export async function POST(request: NextRequest) {
           method: "POST",
           headers: { Cookie: upstreamCookieHeader(refreshed), "X-XSRF-TOKEN": xsrf },
         });
-        if (!result.ok && result.status !== 401 && result.status !== 419) upstreamUnavailable = true;
+        // A restricted member's API session is already ended.
+        if (!result.ok && result.status !== 401 && result.status !== 419 && !isAccountRestriction(await readAccountRefusal(result))) upstreamUnavailable = true;
       }
     } catch { upstreamUnavailable = true; }
   }

@@ -3,6 +3,7 @@ import { clearBridgeCookies, mergeUpstreamCookies, completeUpstreamCookies, read
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
 import { hasIncompleteChatFields, hasRefusedBirthdate, projectChatProfile } from "@/lib/auth/chat-profile";
 import { fetchLaravel, laravelMe, projectSafeUser } from "@/lib/auth/laravel.server";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const verified = await laravelMe(cookies);
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
     const user = projectSafeUser(await verified.response.json());
     if (!user) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
@@ -29,6 +32,8 @@ export async function GET(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(verified.cookies) },
     });
     if (member.status === 401 || member.status === 419) return unauthenticated();
+    const memberRefusal = await accountRefusalResponse(member);
+    if (memberRefusal) return memberRefusal;
     if (!member.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
     const raw: unknown = await member.json();
     const profile = projectChatProfile(raw, user.nickname);

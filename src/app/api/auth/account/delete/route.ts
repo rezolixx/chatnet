@@ -3,6 +3,7 @@ import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, read
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { accountDeletionMessages, deletionOutcomeFromUpstream, validateDeletionInput, type AccountDeletionErrors } from "@/lib/auth/account-deletion";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -69,6 +70,8 @@ export async function POST(request: NextRequest) {
     const verified = await laravelMe(cookies);
     currentCookies = verified.cookies;
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return withBridge(error(503, "UNAVAILABLE", accountDeletionMessages.unavailable), cookies, currentCookies);
     const user = projectSafeUser(await verified.response.json());
     if (!user) return error(503, "UNAVAILABLE", accountDeletionMessages.unavailable);
@@ -89,6 +92,8 @@ export async function POST(request: NextRequest) {
       redirect: "error",
       signal: AbortSignal.timeout(deletionTimeoutMs),
     });
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     const outcome = deletionOutcomeFromUpstream(upstream.status, await upstream.json().catch(() => null));
     if (outcome.deleted) {
       // Laravel ended the session together with the account.
