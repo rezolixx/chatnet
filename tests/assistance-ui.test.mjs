@@ -7,6 +7,7 @@ import ts from "typescript";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as contact from "../src/lib/support/contact.ts";
 import { elements } from "./helpers/password-form.mjs";
+import { memberModules } from "./helpers/member-modules.mjs";
 
 const require = createRequire(import.meta.url);
 const root = new URL("../src/", import.meta.url);
@@ -32,7 +33,9 @@ function component(path, name, { fetch = async () => { throw new Error("Unexpect
     useEffect(effect) { effect(); },
   };
   const link = ({ href, children, ...props }) => require("react/jsx-runtime").jsx("a", { href, ...props, children });
+  const members = memberModules(fetch);
   const localRequire = (specifier) => {
+    if (specifier in members) return members[specifier];
     if (specifier in mocks) return mocks[specifier];
     if (specifier === "react") return hooks;
     if (specifier === "next/link") return { default: link };

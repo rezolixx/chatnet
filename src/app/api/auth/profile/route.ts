@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader } from "@/lib/auth/cookies.server";
 import { fetchLaravel, laravelMe, projectSafeUser } from "@/lib/auth/laravel.server";
 import { projectOwnProfile } from "@/lib/auth/own-profile";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
   try {
     const verified = await laravelMe(cookies);
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
     const me: unknown = await verified.response.json();
     const user = projectSafeUser(me);
@@ -28,6 +31,8 @@ export async function GET(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(verified.cookies) },
     });
     if (member.status === 401 || member.status === 419) return unauthenticated();
+    const memberRefusal = await accountRefusalResponse(member);
+    if (memberRefusal) return memberRefusal;
     if (!member.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
     const profile = projectOwnProfile(me, await member.json(), user.nickname);
     if (!profile) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });

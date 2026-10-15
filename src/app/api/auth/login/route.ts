@@ -3,6 +3,7 @@ import { completeUpstreamCookies, mergeUpstreamCookies, setBridgeCookies, upstre
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import type { AuthErrorCode } from "@/lib/auth/types";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({ login, password }),
     }, request);
+    // Ban / Suspension (403) or unreadable restriction state (503): relayed, never "wrong password".
+    const loginResponseRefusal = await accountRefusalResponse(loginResponse);
+    if (loginResponseRefusal) return loginResponseRefusal;
     if (loginResponse.status === 422 || loginResponse.status === 401 || loginResponse.status === 403) {
       return error(401, "INVALID_CREDENTIALS", "Identifiants incorrects.");
     }
@@ -74,6 +78,8 @@ export async function POST(request: NextRequest) {
     const finalCookies = completeUpstreamCookies(mergeUpstreamCookies(initial, loginResponse.headers));
     if (!finalCookies) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");
     const verified = await laravelMe(finalCookies, request);
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return error(401, "INVALID_CREDENTIALS", "Connexion impossible. Réessayez.");
     const user = projectSafeUser(await verified.response.json());
     if (!user) return error(503, "UNAVAILABLE", "Connexion temporairement indisponible.");

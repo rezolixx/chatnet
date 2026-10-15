@@ -3,6 +3,7 @@ import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, read
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { passwordPolicyError, safePasswordErrors, validatePasswordInput, type PasswordErrors } from "@/lib/auth/password";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -65,6 +66,8 @@ export async function POST(request: NextRequest) {
     const verified = await laravelMe(cookies);
     currentCookies = verified.cookies;
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return withBridge(error(503, "UNAVAILABLE", "Modification temporairement indisponible."), cookies, currentCookies);
     const user = projectSafeUser(await verified.response.json());
     if (!user) return error(503, "UNAVAILABLE", "Modification temporairement indisponible.");
@@ -87,6 +90,8 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(20000),
     });
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     currentCookies = completeUpstreamCookies(mergeUpstreamCookies(refreshed, upstream.headers)) ?? refreshed;
     if (upstream.status === 422) {
       const raw: unknown = await upstream.json().catch(() => null);

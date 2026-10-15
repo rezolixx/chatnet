@@ -200,7 +200,7 @@ test("password UI confirms locally, clears secrets and does not change avatar/pr
   assert.match(source("components/auth/ProfileContent.tsx"), /<AvatarEditor/);
   assert.match(source("components/auth/ProfileContent.tsx"), /<ProfileEditForm/);
   assert.match(source("components/auth/ProfileContent.tsx"), /<PasswordChangeForm key=\{profile.nickname\}/);
-  assert.match(source("components/auth/AvatarEditor.tsx"), /fetch\("\/api\/auth\/avatar"/);
-  assert.match(source("components/auth/ProfileEditForm.tsx"), /fetch\("\/api\/auth\/profile\/update"/);
+  assert.match(source("components/auth/AvatarEditor.tsx"), /memberFetch\("\/api\/auth\/avatar"/);
+  assert.match(source("components/auth/ProfileEditForm.tsx"), /memberFetch\("\/api\/auth\/profile\/update"/);
   assert.doesNotMatch(source("app/api/auth/password/route.ts"), /console\.|localStorage|sessionStorage/);
 });

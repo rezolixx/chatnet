@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/ui/Icons";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { AccountRestrictionPanel } from "@/components/auth/AccountRestrictionPanel";
 import { AuthenticatedChatCard } from "./AuthenticatedChatCard";
 import { buildChatUrl, ORIGIN_TICKET_URL, type ChatJoinDetails } from "@/lib/chat";
 import { roomJoinName } from "@/lib/rooms";
@@ -27,11 +28,15 @@ function validate(details: { nick: string; age: string; sexe: string; ville: str
 }
 
 export function ChatJoinForm({ selectedRoom }: { selectedRoom?: string } = {}) {
-  const { user, loading } = useAuth();
+  const { user, loading, accountRefusal, refreshUser } = useAuth();
   const room = selectedRoom === undefined ? undefined : roomJoinName(selectedRoom);
   if (room === null) return <p role="alert">L’ouverture directe de ce salon n’est pas disponible avec son nom actuel.</p>;
   if (loading) return <div className="chat-join-card member-chat-loading" id="rejoindre" role="status" aria-label="Vérification de la session"><span className="member-chat-skeleton avatar" /><span className="member-chat-skeleton title" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton line" /><span className="member-chat-skeleton button" /></div>;
   if (user) return <AuthenticatedChatCard key={`${user.nickname}:${room ?? "Accueil"}`} nickname={user.nickname} selectedRoom={room} />;
+  // The API has just refused this member (Ban / Suspension, or restriction
+  // state unreadable): no guest form in its place on this page. A visitor who
+  // received no refusal keeps the guest flow unchanged.
+  if (accountRefusal) return <div className="chat-join-card" id="rejoindre"><AccountRestrictionPanel refusal={accountRefusal} onRetry={() => { void refreshUser(); }} /></div>;
   return <GuestChatJoinForm key={room ?? "Accueil"} selectedRoom={room} />;
 }
 

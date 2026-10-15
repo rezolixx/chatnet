@@ -6,6 +6,7 @@ import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } fro
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { DEFAULT_CHAT_ROOM, isChatHandoffCode, MAX_HANDOFF_EXPIRES_IN } from "@/lib/chat-handoff";
 import { roomJoinName } from "@/lib/rooms";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 
@@ -92,6 +93,8 @@ export async function POST(request: NextRequest) {
     const verified = await laravelMe(cookies);
     current = verified.cookies;
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
     const user = projectSafeUser(await verified.response.json());
     if (!user) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
@@ -100,6 +103,8 @@ export async function POST(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(current) },
     });
     if (member.status === 401 || member.status === 419) return unauthenticated();
+    const memberRefusal = await accountRefusalResponse(member);
+    if (memberRefusal) return memberRefusal;
     current = completeUpstreamCookies(mergeUpstreamCookies(current, member.headers)) ?? current;
     if (!member.ok) return withBridge(error(503, "UNAVAILABLE"), cookies, current);
     const raw: unknown = await member.json();
@@ -121,6 +126,8 @@ export async function POST(request: NextRequest) {
       redirect: "error",
     });
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     current = completeUpstreamCookies(mergeUpstreamCookies(refreshed, upstream.headers)) ?? refreshed;
     // Laravel's own age policy refusal (e.g. the date changed meanwhile): only its fixed code is forwarded.
     if (upstream.status === 422 && await isBirthdateRefusal(upstream)) return withBridge(error(422, PROFILE_BIRTHDATE_INVALID), cookies, current);

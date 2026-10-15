@@ -6,6 +6,7 @@ import { registrationCountries, registrationCountrySet } from "@/lib/auth/countr
 import type { OwnProfile } from "@/lib/auth/own-profile";
 import { validateProfileUpdate, type ProfileUpdateErrors, type ProfileUpdateField } from "@/lib/auth/profile-update";
 import { useAuth } from "./AuthProvider";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 const sortedCountries = [...registrationCountries].sort((a, b) => a.localeCompare(b, "fr"));
 
@@ -32,7 +33,7 @@ export function ProfileEditForm({ profile, onSaved, onCancel }: { profile: OwnPr
 
     setSaving(field);
     try {
-      const response = await fetch("/api/auth/profile/update", {
+      const response = await memberFetch("/api/auth/profile/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Chatnet-Profile-Nickname": profile.nickname },
         body: JSON.stringify(checked.input),

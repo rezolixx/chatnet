@@ -3,6 +3,7 @@ import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, read
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,8 @@ export async function POST(request: NextRequest) {
   try {
     const verified = await laravelMe(cookies);
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
     const user = projectSafeUser(await verified.response.json());
     if (!user) return NextResponse.json({ code: "UNAVAILABLE" }, { status: 503, headers: noStore });
@@ -39,6 +42,8 @@ export async function POST(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(refreshed), "X-XSRF-TOKEN": xsrf },
     });
     if (prepared.status === 401 || prepared.status === 419) return unauthenticated();
+    const preparedRefusal = await accountRefusalResponse(prepared);
+    if (preparedRefusal) return preparedRefusal;
     // Laravel's refusals (age policy; bound profile that must use V2; disabled
     // account): only its fixed code is forwarded, never its body.
     const forwarded = forwardedRefusals.get(prepared.status);

@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useAuth } from "./AuthProvider";
 import { accountDeletionMessages, deletionFieldErrors, deletionMessageForCode, DELETION_CONFIRMATION_WORD, isDeletionConfirmed, validateDeletionInput, type AccountDeletionErrors } from "@/lib/auth/account-deletion";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 export function AccountDeletionForm({ nickname }: { nickname: string }) {
   const { refreshUser } = useAuth();
@@ -26,7 +27,7 @@ export function AccountDeletionForm({ nickname }: { nickname: string }) {
     setSubmitting(true);
     let leaving = false;
     try {
-      const response = await fetch("/api/auth/account/delete", {
+      const response = await memberFetch("/api/auth/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Chatnet-Profile-Nickname": nickname },
         body: JSON.stringify(checked.input),

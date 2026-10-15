@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useAuth } from "./AuthProvider";
 import { passwordHint, passwordPolicyError, validatePasswordInput } from "@/lib/auth/password";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 export function PasswordChangeForm({ nickname }: { nickname: string }) {
   const { refreshUser } = useAuth();
@@ -29,7 +30,7 @@ export function PasswordChangeForm({ nickname }: { nickname: string }) {
     pending.current = true;
     setSubmitting(true);
     try {
-      const response = await fetch("/api/auth/password", {
+      const response = await memberFetch("/api/auth/password", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Chatnet-Profile-Nickname": nickname },
         body: JSON.stringify(checked.input),

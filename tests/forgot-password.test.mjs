@@ -7,6 +7,7 @@ import ts from "typescript";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as forgot from "../src/lib/auth/forgot-password.ts";
 import { elements } from "./helpers/password-form.mjs";
+import { memberModules } from "./helpers/member-modules.mjs";
 import { publicMemberModules } from "./helpers/public-member.mjs";
 
 const require = createRequire(import.meta.url);
@@ -34,7 +35,9 @@ function component(path, name, { fetch = async () => { throw new Error("Unexpect
       return slots[slot];
     },
   };
+  const members = memberModules(fetch);
   const localRequire = (specifier) => {
+    if (specifier in members) return members[specifier];
     if (specifier in mocks) return mocks[specifier];
     if (specifier === "react") return hooks;
     if (specifier === "next/link") return { default: link };
@@ -88,7 +91,8 @@ test("login form links to the recovery page below the password field and keeps l
   const pushes = [];
   const h = component("components/auth/LoginForm.tsx", "LoginForm", { mocks: {
     "next/navigation": { useRouter: () => ({ push: (url) => pushes.push(url), refresh() {} }) },
-    "./AuthProvider": { useAuth: () => ({ user: null, loading: false, login: async (...args) => { logins.push(args); } }) },
+    "./AuthProvider": { useAuth: () => ({ user: null, loading: false, accountRefusal: null, clearAccountRefusal() {}, login: async (...args) => { logins.push(args); } }) },
+    "./AccountRestrictionPanel": { AccountRestrictionPanel: () => assert.fail("No refusal to show") },
   } });
   const tree = h.render();
   const forgotLinks = links(tree).filter((element) => element.props.href === "/mot-de-passe-oublie");

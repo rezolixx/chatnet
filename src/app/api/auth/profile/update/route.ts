@@ -4,6 +4,7 @@ import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } fro
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { projectOwnProfile } from "@/lib/auth/own-profile";
 import { profileUpdateField, safeUpstreamProfileErrors, validateProfileUpdate, type ProfileUpdateErrors } from "@/lib/auth/profile-update";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -55,6 +56,8 @@ export async function PUT(request: NextRequest) {
   try {
     const verified = await laravelMe(cookies);
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return error(503, "UNAVAILABLE", "Profil temporairement indisponible.");
     const user = projectSafeUser(await verified.response.json());
     if (!user) return error(503, "UNAVAILABLE", "Profil temporairement indisponible.");
@@ -79,6 +82,8 @@ export async function PUT(request: NextRequest) {
       signal: AbortSignal.timeout(20000),
     });
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     const updated = completeUpstreamCookies(mergeUpstreamCookies(refreshed, upstream.headers)) ?? refreshed;
     currentCookies = updated;
     if (upstream.status === 422) {
@@ -92,6 +97,8 @@ export async function PUT(request: NextRequest) {
     const latest = await laravelMe(updated);
     currentCookies = latest.cookies;
     if (latest.response.status === 401 || latest.response.status === 419) return unauthenticated();
+    const latestRefusal = await accountRefusalResponse(latest.response);
+    if (latestRefusal) return latestRefusal;
     if (!latest.response.ok) return withBridge(error(503, "REFRESH_UNAVAILABLE", "Modification enregistrée. Rechargez le profil pour voir le résultat."), cookies, updated);
     const me: unknown = await latest.response.json();
     const currentUser = projectSafeUser(me);
@@ -100,6 +107,8 @@ export async function PUT(request: NextRequest) {
       headers: { Cookie: upstreamCookieHeader(latest.cookies) },
     });
     if (member.status === 401 || member.status === 419) return unauthenticated();
+    const memberRefusal = await accountRefusalResponse(member);
+    if (memberRefusal) return memberRefusal;
     if (!member.ok) return withBridge(error(503, "REFRESH_UNAVAILABLE", "Modification enregistrée. Rechargez le profil pour voir le résultat."), cookies, latest.cookies);
     const profile = projectOwnProfile(me, await member.json(), user.nickname);
     const expected = "birthdate" in input ? input.birthdate : input.pays;

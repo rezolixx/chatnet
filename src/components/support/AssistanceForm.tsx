@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { contactSuccessMessage, contactUnavailableMessage, safeContactErrors, validateContactInput, type ContactErrors } from "@/lib/support/contact";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 export function AssistanceForm() {
   const { refreshUser } = useAuth();
@@ -25,7 +26,7 @@ export function AssistanceForm() {
     pending.current = true;
     setSubmitting(true);
     try {
-      const response = await fetch("/api/auth/assistance", {
+      const response = await memberFetch("/api/auth/assistance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(checked.input),

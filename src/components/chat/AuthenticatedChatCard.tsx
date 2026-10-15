@@ -6,6 +6,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { MemberAvatar } from "@/components/community/MemberAvatar";
 import { Icon } from "@/components/ui/Icons";
 import { PROFILE_BIRTHDATE_INVALID } from "@/lib/auth/age-policy";
+import { accountRefusalFrom, accountRefusalText, readAccountRefusal } from "@/lib/auth/account-restriction";
+import { memberFetch } from "@/lib/auth/member-fetch";
 import type { ChatProfile } from "@/lib/auth/chat-profile";
 import { buildAuthenticatedChatUrl } from "@/lib/chat";
 import { allowsLegacyChatFallback, CHAT_HANDOFF_REDEEM_URL, ChatEntryFailure, chatEntryMessages, chatEntryRefusal, DEFAULT_CHAT_ROOM, isChatHandoffCode } from "@/lib/chat-handoff";
@@ -64,8 +66,14 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
     requestRef.current = controller;
     async function loadProfile() {
       try {
-        const response = await fetch("/api/auth/chat-profile", { cache: "no-store", signal: controller.signal });
+        const response = await memberFetch("/api/auth/chat-profile", { cache: "no-store", signal: controller.signal });
         if (controller.signal.aborted) return;
+        // Ban / Suspension: AuthProvider shows the notice and ends the member state.
+        const refusal = await readAccountRefusal(response);
+        if (refusal) {
+          if (!controller.signal.aborted) setError(accountRefusalText(refusal));
+          return;
+        }
         if (response.status === 401 || response.status === 419) {
           await refreshUser(true);
           return;
@@ -141,7 +149,7 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
       controller.signal.addEventListener("abort", abort);
       const timeout = window.setTimeout(abort, timeoutMs);
       try {
-        const response = await fetch(url, {
+        const response = await memberFetch(url, {
           method: "POST",
           cache: "no-store",
           credentials: "same-origin",
@@ -176,6 +184,18 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
       if (requestRef.current === controller) setBirthdateBlocked(true);
     }
 
+    // Ban / Suspension, or restriction state unreadable: the tab is closed,
+    // never a guest or legacy entry. memberFetch has already announced it to
+    // AuthProvider (site-wide notice, member state cleared).
+    function accountRefused(status: number, data: unknown): boolean {
+      const refusal = accountRefusalFrom(status, data);
+      if (!refusal) return false;
+      chatWindow.close();
+      blankWindowRef.current = null;
+      if (requestRef.current === controller) setError(accountRefusalText(refusal));
+      return true;
+    }
+
     try {
       const handoff = await post("/api/auth/chat/handoff", JSON.stringify({ room }), handoffTimeout);
       // Network error or timeout: retryable, never a legacy fallback.
@@ -191,6 +211,7 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
         blankWindowRef.current = null;
         return;
       }
+      if (accountRefused(handoff.status, handoff.data)) return;
       const handoffCode = responseCode(handoff.data);
       if (handoff.status === 422 && handoffCode === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
       if (!allowsLegacyChatFallback(handoff.status, handoffCode)) throw new ChatEntryFailure(chatEntryRefusal(handoff.status, handoffCode));
@@ -201,6 +222,7 @@ export function AuthenticatedChatCard({ nickname, selectedRoom }: { nickname: st
       const prepared = await post("/api/auth/chat/prepare", undefined, prepareTimeout);
       if (!prepared) throw new ChatEntryFailure("CHAT_UNAVAILABLE");
       if (prepared.status === 401 || prepared.status === 419) return await sessionExpired();
+      if (accountRefused(prepared.status, prepared.data)) return;
       if (prepared.status === 422 && responseCode(prepared.data) === PROFILE_BIRTHDATE_INVALID) return birthdateRefusal();
       if (prepared.status < 200 || prepared.status >= 300) throw new ChatEntryFailure(chatEntryRefusal(prepared.status, responseCode(prepared.data)));
       const data = prepared.data;

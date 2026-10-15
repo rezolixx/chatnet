@@ -197,7 +197,7 @@ test("shared rules: confirmation word, field errors, codes and confirmation page
 test("profile UI: explicit confirmation, one request at a time, success only after the bridge confirmed", () => {
   const form = source("components/auth/AccountDeletionForm.tsx");
   assert.match(source("components/auth/ProfileContent.tsx"), /<AccountDeletionForm key=\{`delete-\$\{profile\.nickname\}`\} nickname=\{profile\.nickname\} \/>/);
-  assert.match(form, /fetch\("\/api\/auth\/account\/delete"/);
+  assert.match(form, /memberFetch\("\/api\/auth\/account\/delete"/);
   assert.match(form, /"X-Chatnet-Profile-Nickname": nickname/);
   assert.match(form, /if \(pending\.current\) return;/);
   assert.match(form, /if \(response\.ok && result\.deleted === true\) \{/);

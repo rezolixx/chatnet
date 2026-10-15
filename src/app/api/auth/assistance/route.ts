@@ -3,6 +3,7 @@ import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, read
 import { csrfCookies, fetchLaravel, laravelMe, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
 import { contactIdentity, contactUnavailableMessage, safeContactErrors, validateContactInput, type ContactErrors } from "@/lib/support/contact";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
     const verified = await laravelMe(cookies);
     current = verified.cookies;
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok) return withBridge(error(503, "UNAVAILABLE", contactUnavailableMessage), cookies, current);
     const identity = contactIdentity(await verified.response.json());
     if (!identity) return withBridge(error(503, "UNAVAILABLE", "Les informations de votre compte ne permettent pas l’envoi. Veuillez réessayer plus tard."), cookies, current);
@@ -78,6 +81,8 @@ export async function POST(request: NextRequest) {
     });
     current = completeUpstreamCookies(mergeUpstreamCookies(current, upstream.headers)) ?? current;
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     if (upstream.status === 201) {
       // HTTP 201 is the audited acknowledgement. Do not read or return its body.
       return withBridge(NextResponse.json({ sent: true }, { status: 201, headers: noStore }), cookies, current);

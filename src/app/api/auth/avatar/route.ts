@@ -3,6 +3,7 @@ import { AVATAR_MAX_REQUEST_BYTES, avatarValidationError, projectUploadedAvatar 
 import { clearBridgeCookies, completeUpstreamCookies, mergeUpstreamCookies, readBridgeCookies, setBridgeCookies, upstreamCookieHeader } from "@/lib/auth/cookies.server";
 import { csrfCookies, fetchLaravel, laravelMe, projectSafeUser, xsrfHeader } from "@/lib/auth/laravel.server";
 import { hasTrustedOrigin } from "@/lib/auth/origin.server";
+import { accountRefusalResponse } from "@/lib/auth/account-restriction.server";
 
 export const runtime = "nodejs";
 const noStore = { "Cache-Control": "no-store" };
@@ -51,6 +52,8 @@ export async function POST(request: NextRequest) {
   try {
     const verified = await laravelMe(cookies);
     if (verified.response.status === 401 || verified.response.status === 419) return unauthenticated();
+    const verifiedRefusal = await accountRefusalResponse(verified.response);
+    if (verifiedRefusal) return verifiedRefusal;
     if (!verified.response.ok || !projectSafeUser(await verified.response.json())) return error(503, "UNAVAILABLE", "Envoi temporairement indisponible.");
 
     let avatar: File | null;
@@ -75,6 +78,8 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(30000),
     });
     if (upstream.status === 401 || upstream.status === 419) return unauthenticated();
+    const upstreamRefusal = await accountRefusalResponse(upstream);
+    if (upstreamRefusal) return upstreamRefusal;
     if (upstream.status === 422) return error(422, "VALIDATION_ERROR", "L’image doit être au format JPEG, PNG, GIF ou WebP et faire au maximum 4 Mo.");
     if (upstream.status === 429) return error(429, "RATE_LIMITED", "Trop de tentatives. Réessayez plus tard.");
     if (!upstream.ok) return error(503, "UNAVAILABLE", "Envoi temporairement indisponible.");

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MemberAvatar } from "@/components/community/MemberAvatar";
 import { avatarValidationError } from "@/lib/auth/avatar";
 import { useAuth } from "./AuthProvider";
+import { memberFetch } from "@/lib/auth/member-fetch";
 
 export function AvatarEditor({ nickname, avatar, onUploaded }: { nickname: string; avatar: string | null; onUploaded: (avatar: string) => void }) {
   const router = useRouter();
@@ -47,7 +48,7 @@ export function AvatarEditor({ nickname, avatar, onUploaded }: { nickname: strin
     const body = new FormData();
     body.set("avatar", file);
     try {
-      const response = await fetch("/api/auth/avatar", { method: "POST", body, credentials: "same-origin", cache: "no-store" });
+      const response = await memberFetch("/api/auth/avatar", { method: "POST", body, credentials: "same-origin", cache: "no-store" });
       if (response.status === 401) {
         await refreshUser(true);
         router.replace("/connexion");
