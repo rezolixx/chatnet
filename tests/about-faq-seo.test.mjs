@@ -234,11 +234,13 @@ test("FAQ contains 5 categories, unique questions/answers, crawlable HTML, and z
       forbiddenIrcPattern,
       `Forbidden technical IRC term found in FAQ entry: ${item.question}`
     );
-    assert.doesNotMatch(
-      `${item.question} ${item.answer}`,
-      /365\s*jours|suppression automatique/i,
-      `Unactivated automatic inactivity deletion claim found in FAQ entry: ${item.question}`
-    );
+    if (item.id !== "faq-suppression-compte") {
+      assert.doesNotMatch(
+        `${item.question} ${item.answer}`,
+        /365\s*jours|supprimé automatiquement/i,
+        `Inactivity deletion details belong in the account-deletion FAQ: ${item.question}`
+      );
+    }
   }
 
   const deletionItem = faqMod.homeFaq.find((item) => item.id === "faq-suppression-compte");
@@ -246,6 +248,11 @@ test("FAQ contains 5 categories, unique questions/answers, crawlable HTML, and z
   assert.match(deletionItem.answer, /Supprimer mon compte/);
   assert.match(deletionItem.answer, /SUPPRIMER/);
   assert.match(deletionItem.answer, /Supprimer définitivement/);
+  assert.match(deletionItem.question, /365 jours d’inactivité/);
+  assert.match(deletionItem.answer, /365 jours/);
+  assert.match(deletionItem.answer, /30 jours et 7 jours/);
+  assert.match(deletionItem.answer, /supprimé automatiquement/);
+  assert.match(deletionItem.answer, /reconnexion avant la suppression/);
 
   for (const paragraph of harness.load("components/home/HomeSeoContent.tsx").homeAboutParagraphs) {
     assert.doesNotMatch(paragraph, forbiddenIrcPattern);
