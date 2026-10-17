@@ -1,1 +1,1 @@
-export const indexablePaths = ["/", "/salons", "/communaute", "/jeux", "/a-propos", "/contact"] as const;
+export const indexablePaths = ["/", "/salons", "/communaute", "/jeux", "/jeux/quiz", "/a-propos", "/contact"] as const;

@@ -384,12 +384,13 @@ test("SEO metadata, canonical URL, robots.txt, and sitemap remain intact without
     "/salons",
     "/communaute",
     "/jeux",
+    "/jeux/quiz",
     "/a-propos",
     "/contact",
   ]);
 
   const sitemapEntries = JSON.parse(JSON.stringify(sitemapMod.default()));
-  assert.equal(sitemapEntries.length, 6);
+  assert.equal(sitemapEntries.length, 7);
   assert.equal(sitemapEntries[0].url, "https://chatnet.fr/");
   assert.equal(sitemapEntries[0].priority, 1);
 

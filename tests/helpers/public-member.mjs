@@ -11,9 +11,9 @@ const root = fileURLToPath(new URL("../../src/", import.meta.url));
 
 // Real server API helper, projection, page and JSX; replace network and Next's
 // framework-only boundary to assert notFound without running a production account.
-export function publicMemberModules(fetch) {
+export function publicMemberModules(fetch, env = {}) {
   const records = new Map();
-  const context = vm.createContext({ fetch, URL, AbortSignal, process: { env: {} } });
+  const context = vm.createContext({ fetch, URL, AbortSignal, process: { env } });
   function load(relative) {
     let path = resolve(root, relative);
     if (!/\.tsx?$/.test(path)) path += existsSync(`${path}.ts`) ? ".ts" : ".tsx";
