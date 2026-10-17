@@ -87,7 +87,7 @@ test("submission sends only canonical Chatnet URLs and ignores caller body", asy
   };
   const response = await POST(request(secret, { urlList: ["https://other.example/", "https://chatnet.fr/connexion"] }));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, submitted: 6 });
+  assert.deepEqual(await response.json(), { ok: true, submitted: 7 });
   assert.equal(response.headers.get("Cache-Control"), "no-store");
   assert.equal(captured.url, "https://api.indexnow.org/indexnow");
   assert.equal(captured.options.method, "POST");
@@ -101,7 +101,7 @@ test("submission sends only canonical Chatnet URLs and ignores caller body", asy
     keyLocation: "https://chatnet.fr/indexnow-key.txt",
     urlList: [
       "https://chatnet.fr/", "https://chatnet.fr/salons", "https://chatnet.fr/communaute",
-      "https://chatnet.fr/jeux", "https://chatnet.fr/a-propos", "https://chatnet.fr/contact",
+      "https://chatnet.fr/jeux", "https://chatnet.fr/jeux/quiz", "https://chatnet.fr/a-propos", "https://chatnet.fr/contact",
     ],
   });
 });

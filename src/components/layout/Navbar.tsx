@@ -11,6 +11,10 @@ import { ActionLink } from "@/components/ui/ActionLink";
 import { Icon } from "@/components/ui/Icons";
 import { discordUrl, joinHref, site } from "@/lib/site";
 
+function isCurrentSection(pathname: string, href: string): boolean {
+  return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -36,7 +40,7 @@ export function Navbar() {
       <div className="container nav-inner">
         <BrandLogo />
         <nav className="desktop-nav" aria-label="Navigation principale">
-          {navigation.map((item) => <Link key={item.href} href={item.href} className={pathname === item.href ? "nav-link active" : "nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>)}
+          {navigation.map((item) => <Link key={item.href} href={item.href} className={isCurrentSection(pathname, item.href) ? "nav-link active" : "nav-link"} aria-current={pathname === item.href ? "page" : isCurrentSection(pathname, item.href) ? "true" : undefined}>{item.label}</Link>)}
         </nav>
         <div className="nav-actions">
           <a href={discordUrl} target="_blank" rel="noopener noreferrer" className="icon-button nav-discord" aria-label="Rejoindre notre Discord" title="Rejoindre notre Discord"><Icon name="discord" size={19} /></a>
@@ -48,7 +52,7 @@ export function Navbar() {
       </div>
       <nav id="mobile-navigation" className={`mobile-nav ${open ? "open" : ""}`} aria-label="Navigation mobile" inert={!open}>
         <div className="container mobile-nav-inner">
-          {navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={pathname === item.href ? "mobile-nav-link active" : "mobile-nav-link"} aria-current={pathname === item.href ? "page" : undefined}>{item.label}<Icon name="chevron" size={18} /></Link>)}
+          {navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={isCurrentSection(pathname, item.href) ? "mobile-nav-link active" : "mobile-nav-link"} aria-current={pathname === item.href ? "page" : isCurrentSection(pathname, item.href) ? "true" : undefined}>{item.label}<Icon name="chevron" size={18} /></Link>)}
           <a href={discordUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="mobile-nav-link mobile-nav-discord" aria-label="Rejoindre notre Discord" title="Rejoindre notre Discord"><span><Icon name="discord" size={18} />Rejoindre notre Discord</span><Icon name="chevron" size={18} /></a>
           <div className="mobile-nav-actions"><div className="nav-auth-mobile">{accountAction}</div><ActionLink href={joinHref} className="button button-primary">Rejoindre Chatnet</ActionLink></div>
         </div>
