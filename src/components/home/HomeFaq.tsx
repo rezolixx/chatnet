@@ -110,10 +110,11 @@ export const homeFaqCategories: readonly FaqCategory[] = [
         links: [{ label: "Mot de passe oublié ?", href: "/mot-de-passe-oublie" }],
       },
       {
-        id: "faq-suppression-inactivite-compte",
-        question: "Peut-on supprimer son compte et que devient un compte inactif ?",
+        id: "faq-suppression-compte",
+        question: "Peut-on supprimer définitivement son compte membre ?",
         answer:
-          "Oui. Dans « Mon profil », la rubrique « Supprimer mon compte » permet d’effacer définitivement votre compte et de libérer votre pseudo après avoir saisi votre mot de passe actuel et confirmé avec le mot « SUPPRIMER ». Par ailleurs, un compte resté sans activité sur le site ni sur le chat pendant 365 jours fait l’objet d’une notification par e-mail avant sa suppression automatique en l’absence de reconnexion.",
+          "Oui. Dans « Mon profil », ouvrez la rubrique « Supprimer mon compte », saisissez votre mot de passe actuel, tapez le mot « SUPPRIMER » puis cliquez sur « Supprimer définitivement ». Cette action est irréversible : votre compte membre, vos commentaires et la réservation de votre pseudo sont supprimés sur Chatnet.fr comme sur Discut.org.",
+        links: [{ label: "Accéder à Mon profil", href: "/profil" }],
       },
     ],
   },

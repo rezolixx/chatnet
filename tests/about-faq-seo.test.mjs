@@ -234,7 +234,18 @@ test("FAQ contains 5 categories, unique questions/answers, crawlable HTML, and z
       forbiddenIrcPattern,
       `Forbidden technical IRC term found in FAQ entry: ${item.question}`
     );
+    assert.doesNotMatch(
+      `${item.question} ${item.answer}`,
+      /365\s*jours|suppression automatique/i,
+      `Unactivated automatic inactivity deletion claim found in FAQ entry: ${item.question}`
+    );
   }
+
+  const deletionItem = faqMod.homeFaq.find((item) => item.id === "faq-suppression-compte");
+  assert.ok(deletionItem, "Expected manual account deletion FAQ entry");
+  assert.match(deletionItem.answer, /Supprimer mon compte/);
+  assert.match(deletionItem.answer, /SUPPRIMER/);
+  assert.match(deletionItem.answer, /Supprimer définitivement/);
 
   for (const paragraph of harness.load("components/home/HomeSeoContent.tsx").homeAboutParagraphs) {
     assert.doesNotMatch(paragraph, forbiddenIrcPattern);
