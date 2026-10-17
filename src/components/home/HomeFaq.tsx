@@ -111,9 +111,9 @@ export const homeFaqCategories: readonly FaqCategory[] = [
       },
       {
         id: "faq-suppression-compte",
-        question: "Peut-on supprimer définitivement son compte membre ?",
+        question: "Comment supprimer mon compte et que devient-il après 365 jours d’inactivité ?",
         answer:
-          "Oui. Dans « Mon profil », ouvrez la rubrique « Supprimer mon compte », saisissez votre mot de passe actuel, tapez le mot « SUPPRIMER » puis cliquez sur « Supprimer définitivement ». Cette action est irréversible : votre compte membre, vos commentaires et la réservation de votre pseudo sont supprimés sur Chatnet.fr comme sur Discut.org.",
+          "Vous pouvez supprimer définitivement votre compte dans « Mon profil », rubrique « Supprimer mon compte » : saisissez votre mot de passe actuel, tapez « SUPPRIMER », puis cliquez sur « Supprimer définitivement ». Cette action est irréversible. Un compte resté inactif sur le site et sur le chat pendant 365 jours peut également être supprimé automatiquement. Des avertissements par e-mail sont envoyés 30 jours et 7 jours avant la date prévue. Une reconnexion avant la suppression renouvelle votre activité et repousse l’échéance.",
         links: [{ label: "Accéder à Mon profil", href: "/profil" }],
       },
     ],
