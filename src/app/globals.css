@@ -558,7 +558,7 @@ img { max-width: 100%; }
 .games-hero-copy > p { max-width: 640px; margin: 0; color: #c0d1dd; font-size: 16px; line-height: 1.75; }
 .games-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .quiz-hero-art { justify-self: end; width: 100%; max-width: 420px; margin: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, .14); border-radius: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
-.quiz-hero-art img { display: block; width: 100%; height: auto; }
+.quiz-hero-art img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; object-position: 50% 40%; }
 .button-ghost { background: rgba(255, 255, 255, .06); color: #f1f7fa; border-color: rgba(255, 255, 255, .28); }
 .button-ghost:hover { background: rgba(255, 255, 255, .13); border-color: #7ce9ef; }
 .games-hero-channels { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -583,16 +583,18 @@ img { max-width: 100%; }
 .games-hero .game-status-soon { background: rgba(56, 217, 230, .16); color: #7ce9ef; }
 :root[data-theme="dark"] .game-status-live { color: #86efac; }
 .game-tile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.game-tile { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 26px; border: 1px solid var(--border); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); transition: transform .2s ease, border-color .2s ease; }
+.game-tile { --tile-pad: 26px; position: relative; display: flex; flex-direction: column; min-width: 0; padding: var(--tile-pad); border: 1px solid var(--border); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); transition: transform .2s ease, border-color .2s ease; }
 .game-tile:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--cyan) 55%, var(--border)); }
 .game-tile-quiz { background: linear-gradient(160deg, color-mix(in srgb, var(--cyan-light) 70%, var(--card)), var(--card) 55%); border-color: color-mix(in srgb, var(--cyan) 40%, var(--border)); }
 .game-tile-planned { box-shadow: none; }
 .game-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .game-tile-mark { display: grid; place-items: center; flex: 0 0 auto; width: 50px; height: 50px; border-radius: 14px; background: var(--navy); color: #7ce9ef; font-size: 21px; font-weight: 850; }
 .game-tile-planned .game-tile-mark { background: var(--surface-2); color: var(--muted); }
-.game-tile-art { display: block; flex: 0 0 auto; width: 120px; aspect-ratio: 7 / 4; margin: -10px 0 -9px; overflow: hidden; border-radius: 14px; background: var(--navy); box-shadow: 0 8px 22px rgba(0, 201, 219, .18); transition: transform .2s ease; }
-.game-tile-art:hover { transform: scale(1.03); }
-.game-tile-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.game-tile-top-art { position: relative; display: block; margin: calc(-1 * var(--tile-pad)) calc(-1 * var(--tile-pad)) 20px; }
+.game-tile-art { position: relative; display: block; height: clamp(170px, 46vw, 186px); overflow: hidden; border-radius: 17px 17px 0 0; background: var(--cyan-light); }
+.game-tile-art::after { content: ""; position: absolute; inset: auto 0 0; height: 34%; background: linear-gradient(transparent, color-mix(in srgb, var(--cyan-light) 70%, var(--card))); pointer-events: none; }
+.game-tile-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 58% 30%; }
+.game-tile-top-art .game-status { position: absolute; top: 14px; right: 14px; background: color-mix(in srgb, var(--card) 90%, transparent); box-shadow: 0 4px 14px rgba(15, 23, 42, .12); }
 .game-tile h3 { margin: 8px 0 6px; font-size: 24px; letter-spacing: -.03em; }
 .game-tile h3 a:hover { color: var(--accent-text); }
 .game-tile p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.65; }
@@ -696,5 +698,5 @@ body:has(.player-dialog[open]) { overflow: hidden; }
 @keyframes games-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (max-width: 1100px) { .player-games { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 920px) { .games-hero-inner, .quiz-join-grid, .quiz-rules-grid { grid-template-columns: minmax(0, 1fr); }.games-hero-inner { gap: 34px; }.quiz-hero-art { justify-self: start; }.game-tile-grid, .games-steps { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 700px) { .games-hero { padding: 58px 0; }.games-hero-compact { padding: 32px 0 48px; }.quiz-hero-art { max-width: 340px; border-radius: 18px; }.rankings-upcoming { grid-template-columns: minmax(0, 1fr); }.leaderboard th, .leaderboard td { padding: 12px 10px; }.leaderboard { font-size: 13px; }.player-avatar { width: 64px; height: 64px; border-radius: 18px; font-size: 28px; }.quiz-access, .game-tile { padding: 22px; } }
+@media (max-width: 700px) { .games-hero { padding: 58px 0; }.games-hero-compact { padding: 32px 0 48px; }.quiz-hero-art { max-width: 340px; border-radius: 18px; }.quiz-hero-art img { aspect-ratio: 16 / 10; object-position: 50% 30%; }.rankings-upcoming { grid-template-columns: minmax(0, 1fr); }.leaderboard th, .leaderboard td { padding: 12px 10px; }.leaderboard { font-size: 13px; }.player-avatar { width: 64px; height: 64px; border-radius: 18px; font-size: 28px; }.quiz-access { padding: 22px; }.game-tile { --tile-pad: 22px; } }
 @media (max-width: 470px) { .games-hero-actions .button { width: 100%; }.leaderboard th, .leaderboard td { padding: 11px 6px; }.leaderboard thead th { font-size: 10px; letter-spacing: .02em; }.leaderboard-rank { min-width: 28px; height: 28px; padding: 0 6px; }.player-head { align-items: flex-start; gap: 16px; }.player-stats dd { font-size: 20px; }.quiz-table th, .quiz-table td { padding: 12px; }.quiz-rules-grid .quiz-table td, .quiz-commands th { white-space: normal; }.leaderboard-player { gap: 7px; }.player-thumb:not(.player-thumb-large) { width: 26px; height: 26px; font-size: 12px; }.player-dialog-panel { padding: 22px 18px; }.player-dialog-actions .button { width: 100%; } }

@@ -281,7 +281,7 @@ test("game styles keep tables scrollable and grids single-column on small screen
 
 test("QuizBot artwork is the official optimized WebP shipped in public/games", () => {
   const quiz = gameCatalogue.find((game) => game.id === "quiz");
-  assert.deepEqual(quiz.artwork, { src: "/games/quizbot.webp", width: 1792, height: 1024, alt: "QuizBot, le robot du Quiz Chatnet" });
+  assert.deepEqual(quiz.artwork, { src: "/games/quizbot.webp", width: 1792, height: 1024, alt: "QuizBot, le robot du Quiz Chatnet", card: { src: "/games/quizbot-card.webp", width: 1792, height: 660 } });
   const file = readFileSync(new URL("../public/games/quizbot.webp", import.meta.url));
   assert.equal(file.toString("ascii", 0, 4), "RIFF");
   assert.equal(file.toString("ascii", 8, 12), "WEBP");
@@ -289,15 +289,22 @@ test("QuizBot artwork is the official optimized WebP shipped in public/games", (
   assert.deepEqual([1 + file.readUIntLE(24, 3), 1 + file.readUIntLE(27, 3)], [quiz.artwork.width, quiz.artwork.height]);
   assert.ok(file.length < 150 * 1024, "artwork stays a light web asset");
   assert.deepEqual(gameCatalogue.filter((game) => game.artwork).map((game) => game.id), ["quiz"]);
+  // The card banner is a lossy crop of the same artwork (simple VP8), not a different image.
+  const card = readFileSync(new URL("../public/games/quizbot-card.webp", import.meta.url));
+  assert.equal(card.toString("ascii", 8, 16), "WEBPVP8 ");
+  assert.deepEqual([card.readUInt16LE(26) & 0x3fff, card.readUInt16LE(28) & 0x3fff], [quiz.artwork.card.width, quiz.artwork.card.height]);
+  assert.ok(card.length < 80 * 1024, "card crop stays a light web asset");
 });
 
-test("/jeux: the Quiz card shows the linked QuizBot artwork instead of the ? mark; Motus and Défis are unchanged", async () => {
+test("/jeux: the Quiz card opens on a full-width QuizBot banner instead of the ? mark; Motus and Défis are unchanged", async () => {
   const html = markup(await page("app/jeux/page.tsx", {}, { GAMES_QUIZ_OPEN: "true" }).default());
   const card = (id) => html.match(new RegExp(`<article class="game-tile game-tile-${id}[^"]*">.*?</article>`))[0];
   const quiz = card("quiz");
-  assert.match(quiz, /^<article class="game-tile game-tile-quiz"><div class="game-tile-top"><a class="game-tile-art" tabindex="-1" href="\/jeux\/quiz"><img alt="QuizBot, le robot du Quiz Chatnet" loading="lazy" width="1792" height="1024"[^>]* sizes="128px" srcSet="\/_next\/image\?url=%2Fgames%2Fquizbot\.webp&amp;w=32/);
+  assert.match(quiz, /^<article class="game-tile game-tile-quiz"><div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/quiz"><img alt="QuizBot, le robot du Quiz Chatnet" loading="lazy" width="1792" height="660"[^>]* sizes="\(max-width: 920px\) calc\(100vw - 40px\), 400px" srcSet="\/_next\/image\?url=%2Fgames%2Fquizbot-card\.webp&amp;w=/);
   assert.match(quiz, /<\/a><span class="game-status game-status-live">Disponible sur IRC<\/span><\/div>/);
   assert.doesNotMatch(quiz, /game-tile-mark|>\?</);
+  // Card text order is unchanged under the banner.
+  assert.match(quiz, /<\/div><span class="game-kind">Culture générale<\/span><h3>/);
   // Title and "Découvrir" links stay the keyboard path to the Quiz page.
   assert.match(quiz, /<h3><a href="\/jeux\/quiz">Quiz<\/a><\/h3>/);
   assert.match(quiz, /aria-label="Découvrir le jeu Quiz" href="\/jeux\/quiz"/);
@@ -313,10 +320,15 @@ test("/jeux/quiz: QuizBot sits beside the unchanged hero copy and is preloaded a
   assert.doesNotMatch(html.match(/<figure class="quiz-hero-art">.*?<\/figure>/)[0], /loading="lazy"/);
 });
 
-test("QuizBot styles keep the catalogue row height and shrink the hero art on small screens", () => {
+test("QuizBot styles: full-bleed card banner under the badge, cropped hero art that shrinks on small screens", () => {
   const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.game-tile-art \{ display: block; flex: 0 0 auto; width: 120px; aspect-ratio: 7 \/ 4; margin: -10px 0 -9px;/);
-  assert.match(css, /\.game-tile-art img \{ display: block; width: 100%; height: 100%; object-fit: cover; \}/);
+  assert.match(css, /\.game-tile \{ --tile-pad: 26px;[^}]* padding: var\(--tile-pad\);/);
+  assert.match(css, /\.game-tile-top-art \{ position: relative; display: block; margin: calc\(-1 \* var\(--tile-pad\)\) calc\(-1 \* var\(--tile-pad\)\) 20px; \}/);
+  assert.match(css, /\.game-tile-art \{ position: relative; display: block; height: clamp\(170px, 46vw, 186px\); overflow: hidden; border-radius: 17px 17px 0 0;/);
+  assert.match(css, /\.game-tile-art img \{ display: block; width: 100%; height: 100%; object-fit: cover; object-position: 58% 30%; \}/);
+  assert.match(css, /\.game-tile-top-art \.game-status \{ position: absolute; top: 14px; right: 14px;/);
+  assert.match(css, /\.quiz-hero-art img \{ display: block; width: 100%; height: auto; aspect-ratio: 4 \/ 3; object-fit: cover;/);
+  assert.match(css, /@media \(max-width: 700px\) \{[^\n]*\.game-tile \{ --tile-pad: 22px; \}/);
   assert.match(css, /\.quiz-hero-art \{ justify-self: end; width: 100%; max-width: 420px;/);
   assert.match(css, /@media \(max-width: 920px\) \{[^\n]*\.games-hero-inner \{ gap: 34px; \}\.quiz-hero-art \{ justify-self: start; \}/);
   assert.match(css, /@media \(max-width: 700px\) \{[^\n]*\.quiz-hero-art \{ max-width: 340px;/);
