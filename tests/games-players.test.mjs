@@ -21,7 +21,7 @@ const rows = [
   { rank: 2, nickname: "[Aymen]", points: 40, gamesPlayed: 5, wins: 1 },
   { rank: 3, nickname: "lea", points: 40, gamesPlayed: 6, wins: 0 },
 ];
-const verified = { avatar: "https://cdn.chatnet.test/avatars/rezo.webp", profileHref: "/membre/Rezo" };
+const verified = { verified: true, nickname: "Rezo", avatar: "https://cdn.chatnet.test/avatars/rezo.webp", profileHref: "/membre/Rezo" };
 
 // Real React rendering of the actual components (server markup).
 const real = (path) => publicMemberModules(async () => { throw new Error("Unexpected fetch"); }).load(path);
@@ -171,7 +171,7 @@ test("a verified account adds its photo and public profile link to the player ca
   const { PlayerProfileDialog } = real("components/games/PlayerProfileDialog.tsx");
   const html = markup(jsx(PlayerProfileDialog, { player: { ...rows[0], account: verified }, onClose() {} }));
   assert.match(html, /class="player-thumb player-thumb-large" aria-hidden="true" data-avatar="member"><span>R<\/span><img alt="" [^>]*width="72"/);
-  assert.match(html, /class="button button-outline" href="\/membre\/Rezo">Profil membre<\/a>/);
+  assert.match(html, /class="button button-outline" href="\/membre\/Rezo">Profil membre<span class="sr-only"> de Rezo<\/span><\/a>/);
   assert.doesNotMatch(html, /pas forcément associé/);
 });
 

@@ -4,14 +4,15 @@ import { GameDataNotice } from "@/components/games/GameDataNotice";
 import { GamesBreadcrumb } from "@/components/games/GamesBreadcrumb";
 import { LeaderboardTable } from "@/components/games/LeaderboardTable";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { getLeaderboard, LEADERBOARD_LIMIT } from "@/lib/api/games.server";
+import { getVerifiedLeaderboard } from "@/lib/api/game-identities.server";
+import { LEADERBOARD_LIMIT } from "@/lib/api/games.server";
 import { gameCatalogue } from "@/lib/games";
 import { pageMetadata } from "@/lib/metadata";
 
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const leaderboard = await getLeaderboard("quiz");
+  const leaderboard = await getVerifiedLeaderboard("quiz");
   const populated = leaderboard.status === "available" && leaderboard.entries.length > 0;
   return {
     ...pageMetadata("Classement des joueurs", "Classement des meilleurs joueurs du Quiz Chatnet : points, parties jouées et victoires, mis à jour à partir des parties jouées dans le salon #quiz.", "/jeux/classement"),
@@ -21,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RankingsPage() {
-  const leaderboard = await getLeaderboard("quiz");
+  const leaderboard = await getVerifiedLeaderboard("quiz");
   const upcoming = gameCatalogue.filter((game) => !game.implemented);
   return <>
     <section className="games-hero games-hero-compact"><div className="container"><GamesBreadcrumb items={[{ label: "Jeux", href: "/jeux" }, { label: "Classement", href: "/jeux/classement" }]} /><div className="games-hero-copy"><span className="eyebrow">Classement</span><h1>Les meilleurs joueurs.</h1><p>Points, parties jouées et victoires des joueurs du Quiz, à partir des parties réellement jouées dans le salon #quiz.</p></div></div></section>

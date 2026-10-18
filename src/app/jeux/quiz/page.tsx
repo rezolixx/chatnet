@@ -8,7 +8,8 @@ import { GamesBreadcrumb } from "@/components/games/GamesBreadcrumb";
 import { LeaderboardTable } from "@/components/games/LeaderboardTable";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Icon } from "@/components/ui/Icons";
-import { getLeaderboard, isQuizOpen } from "@/lib/api/games.server";
+import { getVerifiedLeaderboard } from "@/lib/api/game-identities.server";
+import { isQuizOpen } from "@/lib/api/games.server";
 import { getGameInfo } from "@/lib/games";
 import { pageMetadata } from "@/lib/metadata";
 import { joinHref } from "@/lib/site";
@@ -50,7 +51,7 @@ export default async function QuizPage() {
   const quiz = getGameInfo("quiz");
   const quizOpen = isQuizOpen();
   const status = gameStatus(quiz, quizOpen);
-  const leaderboard = await getLeaderboard("quiz");
+  const leaderboard = await getVerifiedLeaderboard("quiz");
   return <>
     <section className="games-hero games-hero-compact"><div className="container"><GamesBreadcrumb items={[{ label: "Jeux", href: "/jeux" }, { label: "Quiz", href: "/jeux/quiz" }]} /><div className="games-hero-inner quiz-hero"><div className="games-hero-copy"><span className={`game-status game-status-${status.tone}`}>{status.label}</span><h1>Le Quiz Chatnet</h1><p>Un quiz de culture générale en direct dans le salon IRC #quiz. Une question, un compte à rebours, et la première bonne réponse empoche les points.</p><div className="games-hero-actions"><a href="#participer" className="button button-primary button-large">Comment participer <Icon name="arrow" size={17} /></a><Link href="/jeux/classement" className="button button-ghost button-large">Voir le classement</Link></div></div>{quiz.artwork && <figure className="quiz-hero-art"><Image src={quiz.artwork.src} alt={quiz.artwork.alt} width={quiz.artwork.width} height={quiz.artwork.height} sizes="(max-width: 700px) min(340px, calc(100vw - 40px)), 420px" preload /></figure>}</div></div></section>
     <section className="section quiz-join-section" id="participer"><div className="container quiz-join-grid"><div><SectionHeading eyebrow="Participer" title="Rejoindre une partie en trois étapes." /><ol className="games-steps games-steps-stacked"><li><span className="games-step-number" aria-hidden="true">1</span><h3>Entrez dans #quiz</h3><p>Ouvrez le chat depuis Chatnet, ou connectez votre client IRC au réseau, puis rejoignez le salon #quiz.</p></li><li><span className="games-step-number" aria-hidden="true">2</span><h3>Lancez une partie</h3><p>Tapez <code>!quiz</code>, ou <code>!quiz histoire</code> pour une seule catégorie, si aucune partie n’est en cours.</p></li><li><span className="games-step-number" aria-hidden="true">3</span><h3>Répondez vite</h3><p>Écrivez votre réponse dans le salon. Les points sont enregistrés immédiatement.</p></li></ol></div><aside className="quiz-access" aria-labelledby="quiz-access-title"><h2 id="quiz-access-title">{quizOpen ? "Ouvrir le salon #quiz" : "Le salon #quiz ouvre bientôt"}</h2>{quizOpen ? <ChatJoinForm selectedRoom="quiz" /> : <><p>Le robot du Quiz n’est pas encore actif sur le réseau. Les parties et le classement démarreront dès son ouverture.</p><p>En attendant, retrouvez la communauté dans les salons de discussion.</p><Link href={joinHref} className="button button-primary">Rejoindre le chat <Icon name="arrow" size={16} /></Link></>}</aside></div></section>
