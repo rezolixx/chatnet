@@ -61,19 +61,38 @@ export function normalizeStats(value: unknown): GameStats | null {
 }
 
 export function normalizeLeaderboard(value: unknown, game: GameId): LeaderboardEntry[] | null {
+  return normalizeLeaderboardWithAccounts(value, game)?.entries ?? null;
+}
+
+/**
+ * Entries plus, per row, the Anope services account the Game API vouches for
+ * (`ircAccount`, docs/verified-game-identities.md), or null. Accounts stay on
+ * the server: they are only a resolver input and never part of a
+ * LeaderboardEntry, which reaches the browser.
+ */
+export function normalizeLeaderboardWithAccounts(value: unknown, game: GameId): { entries: LeaderboardEntry[]; accounts: (string | null)[] } | null {
   if (!isRecord(value) || value.game !== game || !Array.isArray(value.entries)) return null;
   const entries: LeaderboardEntry[] = [];
+  const accounts: (string | null)[] = [];
   for (const raw of value.entries) {
     const stats = normalizeStats(raw);
     if (!stats || !isRecord(raw) || !isCount(raw.rank) || raw.rank < 1 || !isValidNickname(raw.nickname)) return null;
     // Ranks are consecutive and unique (docs/api.md); anything else is not a ranking we can show.
     if (raw.rank !== entries.length + 1) return null;
     entries.push({ rank: raw.rank, nickname: raw.nickname, ...stats });
+    // An absent or malformed account only loses the photo, never the row.
+    accounts.push(isValidNickname(raw.ircAccount) ? raw.ircAccount : null);
   }
-  return entries;
+  return { entries, accounts };
 }
 
-export const getLeaderboard = cache(async (game: GameId): Promise<LeaderboardResult> => {
+export type LeaderboardFetch =
+  | { status: "not-configured" }
+  | { status: "unavailable" }
+  | { status: "available"; game: GameId; entries: LeaderboardEntry[]; accounts: (string | null)[] };
+
+// One Game API request per render, shared by getLeaderboard and the identity resolver.
+export const fetchLeaderboard = cache(async (game: GameId): Promise<LeaderboardFetch> => {
   const base = gameApiBase();
   if (base.status === "not-configured") return { status: "not-configured" };
   if (base.status === "invalid") {
@@ -81,13 +100,18 @@ export const getLeaderboard = cache(async (game: GameId): Promise<LeaderboardRes
     return { status: "unavailable" };
   }
   try {
-    const entries = normalizeLeaderboard(await fetchGameApi(base.url, `/api/leaderboards/${game}?limit=${LEADERBOARD_LIMIT}`), game);
-    if (!entries) throw new Error("Invalid leaderboard");
-    return { status: "available", game, entries };
+    const board = normalizeLeaderboardWithAccounts(await fetchGameApi(base.url, `/api/leaderboards/${game}?limit=${LEADERBOARD_LIMIT}`), game);
+    if (!board) throw new Error("Invalid leaderboard");
+    return { status: "available", game, ...board };
   } catch (error) {
     logGameApiFailure(`leaderboard ${game}`, error);
     return { status: "unavailable" };
   }
+});
+
+export const getLeaderboard = cache(async (game: GameId): Promise<LeaderboardResult> => {
+  const board = await fetchLeaderboard(game);
+  return board.status === "available" ? { status: "available", game, entries: board.entries } : board;
 });
 
 export const getPlayerProfile = cache(async (routeParam: string): Promise<PlayerProfileResult> => {

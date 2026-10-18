@@ -5,7 +5,8 @@ import { GameDataNotice } from "@/components/games/GameDataNotice";
 import { LeaderboardTable } from "@/components/games/LeaderboardTable";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Icon } from "@/components/ui/Icons";
-import { getLeaderboard, isQuizOpen } from "@/lib/api/games.server";
+import { getVerifiedLeaderboard } from "@/lib/api/game-identities.server";
+import { isQuizOpen } from "@/lib/api/games.server";
 import { gameCatalogue } from "@/lib/games";
 import { pageMetadata } from "@/lib/metadata";
 
@@ -21,7 +22,7 @@ const steps = [
 
 export default async function GamesPage() {
   const quizOpen = isQuizOpen();
-  const leaderboard = await getLeaderboard("quiz");
+  const leaderboard = await getVerifiedLeaderboard("quiz");
   return <>
     <section className="games-hero"><div className="container games-hero-inner"><div className="games-hero-copy"><span className="eyebrow">Les jeux Chatnet</span><h1>Jouez en direct avec la communauté.</h1><p>Des parties rapides dans les salons de discussion, des points pour chaque bonne réponse et un classement commun. Les jeux Chatnet se jouent sur notre réseau IRC, directement depuis le chat.</p><div className="games-hero-actions"><Link href="/jeux/quiz" className="button button-primary button-large">Découvrir le Quiz <Icon name="arrow" size={17} /></Link><Link href="/jeux/classement" className="button button-ghost button-large">Voir le classement</Link></div></div><ul className="games-hero-channels" aria-label="Salons de jeu">{gameCatalogue.map((game) => <li key={game.id} className={game.implemented ? "is-ready" : undefined}><span className="games-hero-channel">{game.channel}</span><span>{game.name}</span><small>{game.implemented ? (quizOpen ? "Disponible" : "Ouverture prochaine") : "En préparation"}</small></li>)}</ul></div></section>
     <section className="section games-catalogue-section"><div className="container"><SectionHeading eyebrow="Catalogue" title="Choisissez votre jeu." description={quizOpen ? "Le Quiz est ouvert dans le salon #quiz. Motus et les Défis du jour sont en préparation et ne sont pas encore jouables." : "Le Quiz ouvrira en premier dans le salon #quiz. Motus et les Défis du jour sont en préparation et ne sont pas encore jouables."} /><div className="game-tile-grid">{gameCatalogue.map((game) => <GameCatalogueCard key={game.id} game={game} quizOpen={quizOpen} />)}</div></div></section>

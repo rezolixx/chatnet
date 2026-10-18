@@ -645,6 +645,8 @@ body:has(.player-dialog[open]) { overflow: hidden; }
 .player-dialog-head .player-rank { display: inline-block; margin: 0; padding: 4px 10px; font-size: 13px; }
 .player-dialog-note { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .player-dialog-note svg { flex: 0 0 auto; margin-top: 2px; }
+.player-dialog-verified { color: var(--foreground); font-weight: 700; }
+.player-dialog-verified svg { color: var(--accent-text); }
 .player-dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .leaderboard-points { font-weight: 800; color: var(--accent-text); }
 .game-notice { padding: 44px 24px; text-align: center; border: 1px dashed var(--border); border-radius: 16px; background: var(--card); }

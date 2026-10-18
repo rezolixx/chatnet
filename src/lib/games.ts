@@ -68,10 +68,15 @@ export interface LeaderboardEntry extends GameStats {
 
 /**
  * A Chatnet member account whose ownership of an IRC game nickname has been
- * verified server-side (Anope account binding). Never inferred from nickname
- * equality: the Game API records nicknames only, so no source provides one yet.
+ * verified server-side: the services account the Game API recorded for the
+ * player is bound to that member (user_profiles.irc_account_uniqueid = NickCore).
+ * Never inferred from nickname equality. Only public fields: no account name or id.
  */
 export interface VerifiedPlayerAccount {
+  verified: true;
+  /** Public member nickname, which may differ from the IRC game nickname. */
+  nickname: string;
+  /** Same public avatar URL as /communaute; null keeps the initial. */
   avatar: string | null;
   profileHref: string;
 }
