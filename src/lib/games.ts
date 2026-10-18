@@ -28,10 +28,19 @@ export interface GameInfo {
   /** Detail page; null while the game has no engine (no thin placeholder pages). */
   href: string | null;
   implemented: boolean;
+  /** Official illustration (public/), shown instead of the text mark. */
+  artwork?: GameArtwork;
+}
+
+export interface GameArtwork {
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
 }
 
 export const gameCatalogue: readonly GameInfo[] = [
-  { id: "quiz", name: "Quiz", channel: "#quiz", kind: "Culture générale", mark: "?", tagline: "Questions en direct, première bonne réponse gagnante.", description: "Histoire, géographie, sciences, cinéma, musique, sport : répondez le plus vite possible dans le salon #quiz et marquez des points pour le classement.", href: "/jeux/quiz", implemented: true },
+  { id: "quiz", name: "Quiz", channel: "#quiz", kind: "Culture générale", mark: "?", tagline: "Questions en direct, première bonne réponse gagnante.", description: "Histoire, géographie, sciences, cinéma, musique, sport : répondez le plus vite possible dans le salon #quiz et marquez des points pour le classement.", href: "/jeux/quiz", implemented: true, artwork: { src: "/games/quizbot.webp", width: 1792, height: 1024, alt: "QuizBot, le robot du Quiz Chatnet" } },
   { id: "motus", name: "Motus", channel: "#motus", kind: "Jeu de mots", mark: "Aa", tagline: "Retrouver le mot caché, lettre après lettre.", description: "Un jeu de lettres à partager avec la communauté. Motus est en préparation : il n’est pas encore jouable.", href: null, implemented: false },
   { id: "defis", name: "Défis du jour", channel: "#defis", kind: "Défis", mark: "↗", tagline: "Un rendez-vous quotidien à relever ensemble.", description: "Un nouveau défi chaque jour pour se retrouver autour d’un même objectif. Les Défis du jour sont en préparation : ils ne sont pas encore jouables.", href: null, implemented: false },
 ];
@@ -53,6 +62,20 @@ export interface GameStats {
 export interface LeaderboardEntry extends GameStats {
   rank: number;
   nickname: string;
+}
+
+/**
+ * A Chatnet member account whose ownership of an IRC game nickname has been
+ * verified server-side (Anope account binding). Never inferred from nickname
+ * equality: the Game API records nicknames only, so no source provides one yet.
+ */
+export interface VerifiedPlayerAccount {
+  avatar: string | null;
+  profileHref: string;
+}
+
+export interface LeaderboardRow extends LeaderboardEntry {
+  account?: VerifiedPlayerAccount;
 }
 
 export type LeaderboardResult =
