@@ -1,8 +1,8 @@
 # Verified game identities (Quiz avatars)
 
-Status: **the Chatnet side is ready and off by default. No player is verified yet**, because the
-Game System does not record which services account scored. Until the two changes below ship,
-every leaderboard row keeps its initial-letter avatar. That is the correct result.
+Status: **all three parts are written, but none is merged or deployed. No player is verified
+yet.** Until the Game System and Laravel changes below ship and their flags are on, every
+leaderboard row keeps its initial-letter avatar. That is the correct result.
 
 ## Why nicknames are not enough
 
@@ -24,32 +24,36 @@ Laravel already has step 2 (`ChatIdentityService::verifyIrcBinding`, `AnopeAccou
 `/api/members/{nickname}` and `/api/irc-profile/avatar/{accountName}` (which also matches
 `user_profiles.nickname`) are not verification and are not used here.
 
-## Proposed changes (not applied: production-sensitive, need approval)
+## Backend changes (on their own branches, not merged)
 
-### A. GameBot and Game API (`chatnet-game-system`)
+### A. GameBot and Game API (`rezolixx/chatnet-game-system`, branch `feat/verified-game-identities`)
 
-- On connect, `CAP REQ :account-tag` (production runs UnrealIRCd 6, which supports it). With it,
-  the server adds `@account=<NickCore display>` to every PRIVMSG from an identified user.
-  Without the tag the user is not identified. This is server-asserted, not user-supplied.
-- Migration 004 (additive): nullable `score_events.irc_account VARCHAR(30)`. The winning
-  answer's `account` tag goes there, or NULL. No existing row is changed or backfilled.
-- `GET /api/leaderboards/:game`: optional `ircAccount` per entry. Set it only when **every**
-  scoring event of that player in that game carries the same account. Otherwise it is null,
-  for example for history that only has nicknames, mixed accounts, or an unidentified win.
-  Historical rows therefore stay unverified until the policy is revisited. Nothing is made up.
-- Feature flag (for example `GAME_RECORD_IRC_ACCOUNT`) on the bot. Scoring, ranking and sorting
-  stay the same.
+- With `GAME_RECORD_IRC_ACCOUNT=true`, GameBot negotiates `CAP LS 302` →
+  `CAP REQ :account-tag` → `CAP END`. Production runs UnrealIRCd 6, which supports it. The server
+  then adds `@account=<NickCore display>` to every PRIVMSG from an identified user. The tag is
+  set by the server, not by the user, and is read only after the server's `ACK`.
+- Migration 004 (additive): a new side table `game_score_event_accounts`
+  (`score_event_id` → `irc_account`). It is written in the same transaction as the winning score
+  event. There is no `ALTER` on the score ledger and no backfill.
+- With `GAME_API_EXPOSE_IRC_ACCOUNT=true`, `GET /api/leaderboards/:game` adds `ircAccount` to
+  each entry. It is set only when **every** score event of the row carries the same account and
+  those events add up to the row's points. Otherwise it is null, for example for nickname-only
+  history, mixed accounts, or an unidentified win. Nothing is made up.
+- Both flags are ignored, with a log line, until 004 is applied. Scoring, ranking and sorting
+  are unchanged.
 
-### B. Laravel (`chatnet-api`)
+### B. Laravel (`rezolixx/chatnet-api`, branch `feat/games-verified-members`)
 
 `POST /api/internal/games/verified-members`. Server to server, authenticated with the
-`X-Chatnet-Games-Identity-Key` header (shared secret, constant-time compare, like the gateway's
-internal routes), throttled, and behind a feature flag.
+`X-Chatnet-Games-Identity-Key` header (a shared secret of at least 32 characters, compared in
+constant time), throttled to 120 requests a minute. It returns 404 while
+`GAMES_VERIFIED_MEMBERS_ENABLED` is off.
 
 Request: `{ "accounts": ["aYmen", ...] }` (at most 50).
-For each account: `AnopeAccountRegistry::coreFor($account)` must be registered and unambiguous.
-Exactly one active `user_profiles` row must have `irc_account_uniqueid` equal to that `uniqueid`.
-Otherwise the account is left out of the response.
+For each account, `AnopeAccountRegistry::coreFor($account)` must be registered and unambiguous.
+Exactly one profile must have `irc_account_uniqueid` equal to that `uniqueid`, and it must not be
+disabled, suspended or banned. Otherwise the account is left out. Details are in that
+repository's `docs/games-verified-members.md`.
 
 Response, public fields only, never the `uniqueid`, email or token:
 
@@ -79,5 +83,15 @@ or a member unbound or deactivated) disappears within the page's 60-second reval
   - `GAMES_IDENTITY_KEY` is the shared secret, at least 32 characters. Without it, the resolver
     stays off.
 
-Rollout: deploy B (flag off), deploy A, check that `ircAccount` appears for an identified test
-player, then set both Chatnet settings.
+Rollout, with each step switched off until the next one is ready:
+1. Apply migration 004. Deploy the Game System, then set `GAME_RECORD_IRC_ACCOUNT=true` and
+   restart GameBot. Its log shows `IRC account-tag enabled`.
+2. Deploy Laravel and set `GAMES_IDENTITY_KEY` and `GAMES_VERIFIED_MEMBERS_ENABLED=true`.
+3. Set `GAME_API_EXPOSE_IRC_ACCOUNT=true`. Check that `ircAccount` appears once an identified test
+   player has scored.
+4. Set `GAMES_VERIFIED_AVATARS=true` and the same `GAMES_IDENTITY_KEY` on Chatnet.
+
+Existing rows, such as aYmen's current points, keep `ircAccount: null`, because their points were
+scored before accounts were recorded. A verified photo appears only after a player's points all
+come from identified wins. Showing a photo sooner would require a policy decision, for example
+"latest win identified", which this design deliberately does not make.
