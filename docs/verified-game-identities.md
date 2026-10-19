@@ -100,7 +100,68 @@ or a member unbound or deactivated) disappears within the page's 60-second reval
 - A disabled flag, a missing or malformed token, a refused token (401/404), an unavailable, slow or
   malformed internal API, or a failing resolver all keep the public leaderboard available, with
   initials. A failing public leaderboard is reported as before.
-- Player pages (`/jeux/joueurs/...`) and their ranks keep using the public leaderboard only.
+- Player ranks (`/jeux/joueurs/...`) keep using the public leaderboard only. The player page's
+  identity (photo and wording) comes from `getPlayerIdentity`, described below.
+
+## Current owner of a registered nickname (`GAMES_CURRENT_NICKNAME_AVATARS`)
+
+Historical rows such as `aYmen` keep `ircAccount: null`, so the chain above can never give them
+a photo. Laravel's `POST /api/internal/games/nickname-owners` (deployed at `3223bf203c6b`,
+`docs/games-nickname-owners.md` in `chatnet-api`) answers a different question: which verified
+member **currently** owns this registered NickServ nickname (NickAlias → NickCore `uniqueid` →
+the bound `user_profiles` row). It says nothing about who scored the points: they may predate the
+registration, or come from a previous owner of a dropped nickname.
+
+- Separate, server-only flag `GAMES_CURRENT_NICKNAME_AVATARS`, off by default and independent of
+  `GAMES_VERIFIED_AVATARS`. When off, the endpoint is never called. It uses the same
+  `GAMES_IDENTITY_KEY` (`X-Chatnet-Games-Identity-Key`); the internal Game API token is not needed.
+- `/jeux/classement`: one POST per render with the nicknames of the displayed rows
+  (`{ "nicknames": [...] }`, at most 50, ASCII case-insensitively deduplicated, first spelling
+  kept). It runs in parallel with the verified chain.
+- `/jeux/joueurs/[pseudo]`: one POST with the canonical nickname the Game API returned for the page.
+- Strict validation (`projectNicknameOwners`). An entry is kept only when its `nickname` is a
+  spelling that was sent, it appears once (duplicates drop both), `association` is exactly
+  `"registered_nickname_current"`, the entry has no fields beyond `nickname`, `member` and
+  `association`, `member` has no fields beyond `nickname` and `avatar`, and the member nickname
+  forms a safe `/membre/...` link. Avatars follow the same rules as verified members (http/https,
+  no credentials, at most 2048 characters); an unsafe avatar only loses the photo. A malformed
+  envelope, 401, 404 (Laravel flag off), 422, 429, 503, a timeout (2.5 s) or a network error
+  logs `[Chatnet game identities] nickname owners unavailable: <reason>` (never a key or a
+  nickname) and leaves the existing avatars.
+- Precedence: a row (or the player page's Quiz row) with verified score provenance keeps its
+  `account` and is never given a `nicknameOwner`, whatever the nickname-owners endpoint says.
+- Wording. Verified: "Compte membre vérifié : X" and "Profil membre". Current owner only:
+  "Profil actuellement associé à ce pseudo IRC : X", followed by "Ce membre n’a pas forcément
+  marqué les points affichés…", and a "Profil associé" link. Never "vérifié", never authorship.
+  In the table the photo is `data-avatar="nickname-owner"` (verified photos stay `member`).
+- Points, ranks, wins and rows always stay the Game API's. Nothing is transferred, reset, merged
+  or reassigned, and two nicknames owned by one member remain two rows.
+- No caching beyond the render. The fetch sets neither `cache` nor `next.revalidate`, so at
+  runtime Next 16 treats it as "auto no cache": the answer is not written to the Data Cache and
+  the ISR pages stay static. The association lives only in the rendered page, for its
+  `revalidate = 60` window, and is never stored with score data. A drop, re-registration or
+  rebinding shows up on the next render.
+
+### Enable, verify, roll back
+
+Prerequisite: Laravel `3223bf203c6b` deployed with `GAMES_NICKNAME_OWNERS_ENABLED=false`, and
+`GAMES_IDENTITY_KEY` already shared (it is if verified avatars are configured).
+
+1. Deploy this Chatnet version. With `GAMES_CURRENT_NICKNAME_AVATARS` unset nothing changes.
+2. On Laravel, set `GAMES_NICKNAME_OWNERS_ENABLED=true`. Check that the endpoint answers 401
+   without the key and 200 with it.
+3. On Chatnet (Coolify runtime variable, never a build variable or `NEXT_PUBLIC_`), set
+   `GAMES_CURRENT_NICKNAME_AVATARS=true`, redeploy.
+4. Open `/jeux/classement` and `/jeux/joueurs/aYmen`. `aYmen` shows the current owner's photo,
+   with "Profil actuellement associé à ce pseudo IRC" on the card and the player page, and no
+   "vérifié". Points and ranks are unchanged.
+5. Logs must not show `nickname owners unavailable`. `HTTP 404` means the Laravel flag is off,
+   `HTTP 401` that the keys differ, `HTTP 503` that Laravel cannot read Anope.
+
+Rollback: set `GAMES_CURRENT_NICKNAME_AVATARS=false` (or remove it) and redeploy; pages are back
+to the verified-only behaviour on the next render. Turning off `GAMES_NICKNAME_OWNERS_ENABLED` on
+Laravel has the same visible effect (404 → initials) without a Chatnet redeploy. Nothing is
+stored, so there is nothing to clean up.
 
 ## Coolify variables (Chatnet.fr application)
 
@@ -115,6 +176,7 @@ container.
 | `INTERNAL_GAME_API_TOKEN` | **Same value** as the Game API's `INTERNAL_GAME_API_TOKEN` | Secret. 32 to 512 printable ASCII characters, no spaces (`openssl rand -hex 32`). Missing or invalid: no internal call, initials only. |
 | `GAMES_IDENTITY_KEY` | **Same value** as Laravel's `GAMES_IDENTITY_KEY` | Secret, at least 32 characters. Sent as `X-Chatnet-Games-Identity-Key`. |
 | `GAMES_VERIFIED_AVATARS` | `true` to enable, anything else (or unset) to keep it off | Leave unset until the check below. When off, neither the internal Game API nor Laravel is called. |
+| `GAMES_CURRENT_NICKNAME_AVATARS` | `true` to enable, anything else (or unset) to keep it off | Separate flag for the current registered nickname owner (section above). Needs `GAMES_IDENTITY_KEY` and Laravel's `GAMES_NICKNAME_OWNERS_ENABLED=true`. |
 
 Enable, then verify:
 1. Set `INTERNAL_GAME_API_TOKEN` and `GAMES_IDENTITY_KEY` (secrets), redeploy. Nothing changes yet.
@@ -138,4 +200,6 @@ Enable, then verify:
 Existing rows, such as aYmen's current points, keep `ircAccount: null`, because their points were
 scored before accounts were recorded. A verified photo appears only after a player's points all
 come from identified wins. Showing a photo sooner would require a policy decision, for example
-"latest win identified", which this design deliberately does not make.
+"latest win identified", which this design deliberately does not make. The separate
+`GAMES_CURRENT_NICKNAME_AVATARS` flag shows the current nickname owner instead, explicitly
+labelled as such and never as the author of those points.

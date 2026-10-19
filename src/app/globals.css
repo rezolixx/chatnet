@@ -694,6 +694,9 @@ body:has(.player-dialog[open]) { overflow: hidden; }
 .player-stats dd { margin: 6px 0 0; font-size: 24px; font-weight: 850; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .player-game-note { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .player-disclaimer { display: flex; align-items: flex-start; gap: 10px; margin: 28px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.player-disclaimer-verified { color: var(--foreground); font-weight: 700; }
+.player-disclaimer strong, .player-dialog-owner strong { color: var(--foreground); }
+.player-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .games-skeleton { display: grid; gap: 12px; }
 .games-skeleton span { display: block; height: 52px; border-radius: 12px; background: linear-gradient(90deg, var(--surface), var(--surface-2), var(--surface)); background-size: 200% 100%; animation: games-shimmer 1.4s ease-in-out infinite; }
 .games-skeleton .games-skeleton-title { width: min(340px, 70%); height: 36px; margin-bottom: 12px; }

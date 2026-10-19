@@ -81,8 +81,33 @@ export interface VerifiedPlayerAccount {
   profileHref: string;
 }
 
-export interface LeaderboardRow extends LeaderboardEntry {
-  account?: VerifiedPlayerAccount;
+/**
+ * The Chatnet member who currently owns the registered NickServ nickname shown
+ * on a row (Laravel nickname-owners, docs/verified-game-identities.md). It
+ * proves nothing about who scored the points: they may predate the
+ * registration, or come from a previous owner. Only public fields.
+ */
+export interface CurrentNicknameOwner {
+  verified: false;
+  association: "registered_nickname_current";
+  /** Public member nickname, which may differ from the IRC game nickname. */
+  nickname: string;
+  avatar: string | null;
+  profileHref: string;
+}
+
+// The wording for a current nickname owner: never "verified player", never authorship of the points.
+export const NICKNAME_OWNER_LABEL = "Profil actuellement associé à ce pseudo IRC";
+export const NICKNAME_OWNER_CAVEAT = "Ce membre n’a pas forcément marqué les points affichés : ils peuvent dater d’avant son enregistrement du pseudo.";
+
+/** Who a game nickname points to. A verified account always wins over a current nickname owner. */
+export type PlayerIdentity = { account: VerifiedPlayerAccount; nicknameOwner?: never } | { account?: never; nicknameOwner: CurrentNicknameOwner } | { account?: never; nicknameOwner?: never };
+
+export type LeaderboardRow = LeaderboardEntry & PlayerIdentity;
+
+/** The photo of whichever member a row points to, or null for the initial. */
+export function identityAvatar(identity: PlayerIdentity): string | null {
+  return identity.account?.avatar ?? identity.nicknameOwner?.avatar ?? null;
 }
 
 export type LeaderboardResult =

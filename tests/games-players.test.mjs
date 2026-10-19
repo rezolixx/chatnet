@@ -93,7 +93,7 @@ test("only a verified member account adds a photo; the initial stays underneath 
 
 test("a failed member photo falls back to the initial letter", () => {
   const h = client("components/games/PlayerAvatar.tsx");
-  const tree = () => h.render("PlayerAvatar", { nickname: "rezo", avatar: verified.avatar });
+  const tree = () => h.render("PlayerAvatar", { nickname: "rezo", identity: { account: verified } });
   const [img] = elements(tree(), (el) => typeof el.props?.onError === "function");
   assert.equal(img.props.alt, "");
   img.props.onError();
