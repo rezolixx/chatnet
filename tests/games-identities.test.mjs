@@ -12,32 +12,45 @@ const json = (value, status = 200) => new Response(JSON.stringify(value), { stat
 const GAME_API = "https://jeux-api.test";
 const LARAVEL = "https://laravel.chatnet.test";
 const KEY = "k".repeat(40);
-const ENABLED = { GAME_API_BASE_URL: GAME_API, API_BASE_URL: LARAVEL, GAMES_VERIFIED_AVATARS: "true", GAMES_IDENTITY_KEY: KEY };
+const TOKEN = "t0ken".repeat(13);
+const ENABLED = { GAME_API_BASE_URL: GAME_API, API_BASE_URL: LARAVEL, GAMES_VERIFIED_AVATARS: "true", GAMES_IDENTITY_KEY: KEY, INTERNAL_GAME_API_TOKEN: TOKEN };
 const AVATAR = "https://laravel.chatnet.test/storage/avatars/aymen.webp";
 const DEFAULT_AVATAR = "https://laravel.chatnet.test/images/avatar.png";
 
 const stats = (rank, nickname, extra = {}) => ({ rank, nickname, points: 100 - rank, gamesPlayed: 5, wins: 1, ...extra });
 const board = (entries) => ({ game: "quiz", name: "Quiz", limit: 50, entries });
 const member = (account, nickname = account, avatar = AVATAR) => ({ account, nickname, avatar });
+const withoutAccount = ({ ircAccount, ...entry }) => (void ircAccount, entry);
 
-// Real modules; the Game API and Laravel resolver are fixtures behind one fetch stub.
-function harness(entries, resolver = () => json({ members: [] }), env = ENABLED) {
+// The deployed Game API (64d81487d251): the public route has no ircAccount, the
+// internal route requires the Bearer token and adds ircAccount (null by default).
+const internalGameApi = (entries) => (init) => init.headers.Authorization === `Bearer ${TOKEN}`
+  ? json(board(entries.map((entry) => ({ ircAccount: null, ...entry }))))
+  : json({ error: { code: "unauthorized", message: "Authentification requise." } }, 401);
+
+// Real modules; the Game API (public and internal) and the Laravel resolver are fixtures behind one fetch stub.
+function harness(entries, resolver = () => json({ members: [] }), env = ENABLED, { internal = internalGameApi(entries), publicEntries = entries.map(withoutAccount) } = {}) {
   const calls = [];
+  const logs = [];
+  const capture = (...args) => logs.push(args.map(String).join(" "));
   const modules = publicMemberModules(async (url, init) => {
     calls.push({ url, init });
     const { origin, pathname } = new URL(url);
-    if (origin === GAME_API && pathname === "/api/leaderboards/quiz") return json(board(entries));
-    if (origin === LARAVEL && pathname === "/api/internal/games/verified-members") {
-      const response = resolver(JSON.parse(init.body), init);
+    const reply = (handler, ...args) => {
+      const response = handler(...args);
       if (response instanceof Error) throw response;
       return response;
-    }
+    };
+    if (origin === GAME_API && pathname === "/api/leaderboards/quiz") return json(board(publicEntries));
+    if (origin === GAME_API && pathname === "/internal/leaderboards/quiz") return reply(internal, init);
+    if (origin === LARAVEL && pathname === "/api/internal/games/verified-members") return reply(resolver, JSON.parse(init.body), init);
     throw new Error(`Unexpected request ${url}`);
-  }, env);
+  }, env, { console: { warn: capture, error: capture, log: capture, info: capture } });
   const resolverCalls = () => calls.filter((call) => call.url.startsWith(LARAVEL));
-  return { modules, calls, resolverCalls, leaderboard: async () => plain(await modules.load("lib/api/game-identities.server.ts").getVerifiedLeaderboard("quiz")) };
+  const internalCalls = () => calls.filter((call) => call.url.startsWith(`${GAME_API}/internal/`));
+  const publicCalls = () => calls.filter((call) => call.url.startsWith(`${GAME_API}/api/`));
+  return { modules, calls, logs, resolverCalls, internalCalls, publicCalls, leaderboard: async () => plain(await modules.load("lib/api/game-identities.server.ts").getVerifiedLeaderboard("quiz")) };
 }
-
 
 test("disabled by default: no resolver call, every row keeps its initial, accounts never reach the rows", async () => {
   for (const env of [
@@ -50,7 +63,136 @@ test("disabled by default: no resolver call, every row keeps its initial, accoun
     const result = await h.leaderboard();
     assert.deepEqual(result.entries, [stats(1, "aYmen")]);
     assert.equal(h.resolverCalls().length, 0);
+    // GAMES_VERIFIED_AVATARS=false (or no key) never sends the internal token either.
+    assert.equal(h.internalCalls().length, 0);
+    assert.equal(h.publicCalls().length, 1);
   }
+});
+
+test("internal leaderboard: Bearer token only to the internal route, never to the public route or Laravel", async () => {
+  const h = harness([stats(1, "aYmen", { ircAccount: "aYmen" })], () => json({ members: [member("aYmen")] }));
+  const result = await h.leaderboard();
+  assert.equal(result.entries[0].account.profileHref, "/membre/aYmen");
+  const [internal] = h.internalCalls();
+  assert.equal(h.internalCalls().length, 1);
+  assert.equal(internal.url, `${GAME_API}/internal/leaderboards/quiz?limit=50`);
+  assert.equal(internal.init.headers.Authorization, `Bearer ${TOKEN}`);
+  assert.equal(internal.init.method, undefined);
+  assert.deepEqual(plain(internal.init.next), { revalidate: 60 });
+  assert.ok(internal.init.signal);
+  for (const call of [...h.publicCalls(), ...h.resolverCalls()]) {
+    assert.doesNotMatch(JSON.stringify(call.init.headers), /authorization/i);
+    assert.ok(!JSON.stringify(call.init).includes(TOKEN), call.url);
+  }
+  assert.ok(!JSON.stringify(result).includes(TOKEN));
+});
+
+test("the public route is never trusted for identities, even if it carried an ircAccount", async () => {
+  // A public answer with accounts but an internal route that is refused: nothing is attributed.
+  const entries = [stats(1, "aYmen", { ircAccount: "aYmen" })];
+  const h = harness(entries, () => json({ members: [member("aYmen")] }), ENABLED, { internal: () => json({}, 401), publicEntries: entries });
+  const result = await h.leaderboard();
+  assert.deepEqual(result.entries, [stats(1, "aYmen")]);
+  assert.equal(h.resolverCalls().length, 0);
+  // getLeaderboard alone (player pages, ranks) drops it too.
+  const plainBoard = plain(await h.modules.load("lib/api/games.server.ts").getLeaderboard("quiz"));
+  assert.deepEqual(plainBoard.entries, [stats(1, "aYmen")]);
+});
+
+test("internal API unavailable, refused or malformed: public leaderboard without photos, no secret in logs", async () => {
+  const entries = [stats(1, "aYmen", { ircAccount: "SecretServicesAcct" }), stats(2, "Lea")];
+  for (const internal of [
+    () => json({ error: { code: "unauthorized" } }, 401),
+    () => json({ error: { code: "not_found" } }, 404),
+    () => json({ error: { code: "service_unavailable" } }, 503),
+    () => new Error("The operation was aborted due to timeout"),
+    () => new Error("fetch failed"),
+    () => new Response("<html>", { status: 200 }),
+    () => json({ game: "other", entries: [] }),
+    () => json(board([{ ...stats(2, "aYmen"), ircAccount: "SecretServicesAcct" }])),
+  ]) {
+    const h = harness(entries, () => json({ members: [member("SecretServicesAcct", "aYmen")] }), ENABLED, { internal });
+    const result = await h.leaderboard();
+    assert.equal(result.status, "available");
+    assert.deepEqual(result.entries, [stats(1, "aYmen"), stats(2, "Lea")]);
+    assert.equal(h.resolverCalls().length, 0);
+    assert.equal(h.logs.length, 1);
+    assert.match(h.logs[0], /^\[Chatnet Game API\] internal leaderboard quiz unavailable: /);
+    assert.ok(!h.logs.join("\n").includes(TOKEN));
+    assert.doesNotMatch(h.logs.join("\n"), /SecretServicesAcct|Bearer/);
+  }
+});
+
+test("a missing or malformed INTERNAL_GAME_API_TOKEN is never sent and keeps the safe behaviour", async () => {
+  for (const token of [undefined, "", "short", `${"a".repeat(20)} ${"b".repeat(20)}`, "é".repeat(40), "x".repeat(513)]) {
+    const env = { ...ENABLED, INTERNAL_GAME_API_TOKEN: token };
+    const h = harness([stats(1, "aYmen", { ircAccount: "aYmen" })], () => { throw new Error("must not be called"); }, env);
+    const result = await h.leaderboard();
+    assert.deepEqual(result.entries, [stats(1, "aYmen")]);
+    assert.equal(h.internalCalls().length, 0);
+    assert.equal(h.resolverCalls().length, 0);
+    // The variable is named, never its value.
+    assert.deepEqual(h.logs, ["[Chatnet Game API] internal leaderboard quiz unavailable: INTERNAL_GAME_API_TOKEN missing or invalid"]);
+  }
+});
+
+test("historical and unverified scores keep ircAccount null and are never attributed", async () => {
+  // Today's production state: every row is historical (ircAccount: null), aYmen included.
+  const h = harness([stats(1, "aYmen", { ircAccount: null }), stats(2, "Lea", { ircAccount: null })], () => json({ members: [member("aYmen")] }));
+  const result = await h.leaderboard();
+  assert.deepEqual(result.entries, [stats(1, "aYmen"), stats(2, "Lea")]);
+  assert.equal(h.internalCalls().length, 1);
+  // No account, no question to Laravel: the nickname alone never asks for a photo.
+  assert.equal(h.resolverCalls().length, 0);
+  // Once aYmen's points are all identified, only that row is verified.
+  const later = harness([stats(1, "aYmen", { ircAccount: "aYmen" }), stats(2, "Lea", { ircAccount: null })], () => json({ members: [member("aYmen"), member("Lea")] }));
+  const [aymen, lea] = (await later.leaderboard()).entries;
+  assert.equal(aymen.account.nickname, "aYmen");
+  assert.equal(lea.account, undefined);
+  assert.deepEqual(JSON.parse(later.resolverCalls()[0].init.body), { accounts: ["aYmen"] });
+});
+
+test("rows that differ between the public and internal boards stay unverified", async () => {
+  const publicEntries = [stats(1, "Lea"), stats(2, "aYmen"), stats(3, "Rezo")];
+  // A score landed between the two requests: Lea and aYmen swapped, Rezo's points moved.
+  const internal = internalGameApi([stats(1, "aYmen", { ircAccount: "aYmen" }), stats(2, "Lea", { ircAccount: "Lea" }), stats(3, "Rezo", { points: 98, ircAccount: "Rezo" })]);
+  const h = harness([], () => { throw new Error("must not be called"); }, ENABLED, { internal, publicEntries });
+  const result = await h.leaderboard();
+  assert.deepEqual(result.entries, publicEntries);
+  assert.equal(h.resolverCalls().length, 0);
+  // Nickname case is part of the row check too.
+  const cased = harness([], () => json({ members: [member("aYmen")] }), ENABLED, { internal: internalGameApi([stats(1, "AYMEN", { ircAccount: "aYmen" })]), publicEntries: [stats(1, "aYmen")] });
+  assert.equal((await cased.leaderboard()).entries[0].account, undefined);
+  // A shorter internal board leaves the extra public rows unverified.
+  const short = harness([], () => json({ members: [member("aYmen")] }), ENABLED, { internal: internalGameApi([stats(1, "aYmen", { ircAccount: "aYmen" })]), publicEntries: [stats(1, "aYmen"), stats(2, "Lea")] });
+  const [first, second] = (await short.leaderboard()).entries;
+  assert.equal(first.account.nickname, "aYmen");
+  assert.equal(second.account, undefined);
+});
+
+test("public leaderboard failures are unchanged by the internal route", async () => {
+  const internal = internalGameApi([stats(1, "aYmen", { ircAccount: "aYmen" })]);
+  const modules = publicMemberModules(async (url, init) => {
+    if (url.includes("/internal/")) return internal(init);
+    return json({ error: {} }, 503);
+  }, ENABLED, { console: { warn() {} } });
+  assert.deepEqual(plain(await modules.load("lib/api/game-identities.server.ts").getVerifiedLeaderboard("quiz")), { status: "unavailable" });
+  const unconfigured = harness([stats(1, "aYmen", { ircAccount: "aYmen" })], undefined, { ...ENABLED, GAME_API_BASE_URL: "" });
+  assert.deepEqual(await unconfigured.leaderboard(), { status: "not-configured" });
+  assert.equal(unconfigured.calls.length, 0);
+});
+
+test("the internal token and raw accounts stay in server-only modules", () => {
+  const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), "utf8");
+  const games = read("lib/api/games.server.ts");
+  assert.match(games, /^import "server-only";/);
+  assert.match(read("lib/api/game-identities.server.ts"), /^import "server-only";/);
+  // Read only here, never as a NEXT_PUBLIC_ variable, never in a client component.
+  assert.match(games, /process\.env\.INTERNAL_GAME_API_TOKEN/);
+  for (const path of ["components/games/LeaderboardTable.tsx", "components/games/PlayerAvatar.tsx", "components/games/PlayerProfileDialog.tsx", "lib/games.ts"]) {
+    assert.doesNotMatch(read(path), /INTERNAL_GAME_API_TOKEN|ircAccount|games\.server|game-identities\.server/, path);
+  }
+  assert.doesNotMatch(readFileSync(new URL("../next.config.ts", import.meta.url), "utf8"), /INTERNAL_GAME_API_TOKEN|GAMES_IDENTITY_KEY/);
 });
 
 test("verified account with an avatar gets the /communaute photo and member link, server-side only", async () => {
@@ -156,7 +298,8 @@ test("ranking pages render the verified photo and keep account names and keys ou
   const html = markup(await h.modules.load("app/jeux/classement/page.tsx").default());
   assert.match(html, /data-avatar="member"><span>A<\/span><img alt="" [^>]*src="https:\/\/laravel\.chatnet\.test\/storage\/avatars\/aymen\.webp"/);
   assert.equal((html.match(/data-avatar="initial"/g) ?? []).length, 1);
-  assert.doesNotMatch(html, /SecretServicesAcct|ircAccount|uniqueid|kkkkkkkk/i);
+  assert.doesNotMatch(html, /SecretServicesAcct|ircAccount|uniqueid|kkkkkkkk|t0ken|Bearer/i);
+  assert.equal(h.internalCalls().length, 1);
   // The player-detail rank lookup keeps using the plain leaderboard.
   assert.doesNotMatch(readFileSync(new URL("../src/lib/api/games.server.ts", import.meta.url), "utf8"), /game-identities.server/);
 });
