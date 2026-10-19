@@ -1,10 +1,14 @@
 # Verified game identities (Quiz avatars)
 
-Status: **the Game API (commit `64d81487d251`, with the authenticated internal leaderboard) and
-the Laravel resolver are deployed. The Chatnet side is merged but off (`GAMES_VERIFIED_AVATARS`
-unset). No player is verified yet:** every current leaderboard row has `ircAccount: null`, because
-its points were scored before accounts were recorded. Every row therefore keeps its initial-letter
-avatar. That is the correct result.
+Status: the Game API (commit `64d81487d251`, authenticated internal leaderboard) and
+the Laravel verified-members resolver are deployed and have passed controlled endpoint tests.
+The Chatnet.fr integration in this repository must be deployed and activated separately with
+`GAMES_VERIFIED_AVATARS=true`, a matching server-side `INTERNAL_GAME_API_TOKEN`, and the
+existing shared `GAMES_IDENTITY_KEY`. **Code merged to `main` does not by itself mean the
+Chatnet.fr container is deployed or the feature enabled.** At the last verified staging
+check (2026-10-19), `VERIFIED_ROWS=0`: leaderboard entries had `ircAccount: null` because
+historical or mixed scores could not be attributed to one NickServ account. Such rows retain
+their initial-letter avatar; points are never retroactively reassigned.
 
 ## Why nicknames are not enough
 
