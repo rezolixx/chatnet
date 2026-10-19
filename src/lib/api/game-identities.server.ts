@@ -3,14 +3,16 @@ import "server-only";
 import { cache } from "react";
 
 import { apiBaseUrl, isRecord } from "@/lib/api/client.server";
-import { fetchLeaderboard } from "@/lib/api/games.server";
+import { fetchInternalLeaderboard, getLeaderboard } from "@/lib/api/games.server";
+import type { InternalLeaderboard } from "@/lib/api/games.server";
 import { normalizeMember } from "@/lib/api/members";
 import { publicMemberHref, publicNickname } from "@/lib/api/public-member";
 import { isValidNickname } from "@/lib/games";
-import type { GameId, LeaderboardResult, LeaderboardRow, VerifiedPlayerAccount } from "@/lib/games";
+import type { GameId, LeaderboardEntry, LeaderboardResult, LeaderboardRow, VerifiedPlayerAccount } from "@/lib/games";
 
-// Verified game identities (docs/verified-game-identities.md). The Game API
-// vouches for the Anope services account behind a leaderboard row; Laravel maps
+// Verified game identities (docs/verified-game-identities.md). The internal,
+// authenticated Game API route vouches for the Anope services account behind a
+// leaderboard row; Laravel maps
 // that account to the member bound to the same NickCore
 // (user_profiles.irc_account_uniqueid). Nickname equality never counts, and the
 // account names stay on this server.
@@ -20,7 +22,10 @@ const REVALIDATE_SECONDS = 60;
 const TIMEOUT_MS = 2500;
 const MIN_KEY_LENGTH = 32;
 
-/** Off unless operators enable it once GameBot and Laravel ship their halves. */
+/**
+ * Off unless operators enable it. When off, neither the internal Game API nor
+ * Laravel is called. It also needs INTERNAL_GAME_API_TOKEN to find any account.
+ */
 export function identityResolverKey(): string | null {
   if (process.env.GAMES_VERIFIED_AVATARS?.trim().toLowerCase() !== "true") return null;
   const key = process.env.GAMES_IDENTITY_KEY?.trim();
@@ -80,26 +85,47 @@ async function resolveAccounts(accounts: readonly string[], key: string): Promis
   return projectVerifiedMembers(await response.json(), accounts);
 }
 
+const sameRow = (a: LeaderboardEntry, b: LeaderboardEntry) =>
+  a.rank === b.rank && a.nickname === b.nickname && a.points === b.points && a.gamesPlayed === b.gamesPlayed && a.wins === b.wins;
+
+/**
+ * Per public row, the account the internal leaderboard vouches for, or null.
+ * The two boards are separate requests, so a score landing in between can
+ * shift rows: an account is only kept for a row whose rank, nickname and stats
+ * are identical on both. Anything else stays unverified rather than guessed.
+ */
+export function alignAccounts(publicEntries: readonly LeaderboardEntry[], internal: InternalLeaderboard | null): (string | null)[] {
+  return publicEntries.map((entry, index) => {
+    const twin = internal?.entries[index];
+    return twin && sameRow(entry, twin) ? internal.accounts[index] ?? null : null;
+  });
+}
+
 export type VerifiedLeaderboardResult = Exclude<LeaderboardResult, { status: "available" }> | { status: "available"; game: GameId; entries: LeaderboardRow[] };
 
 /**
- * The leaderboard with verified member accounts attached. Rows, ranks and
- * stats are exactly getLeaderboard's; a disabled, failing or slow resolver
- * only leaves every row on its initial-letter avatar.
+ * The public leaderboard with verified member accounts attached. Rows, ranks
+ * and stats are exactly getLeaderboard's; accounts come only from the
+ * authenticated internal Game API. A disabled flag, a missing or refused token,
+ * or a failing, slow or malformed internal API or resolver only leaves every
+ * row on its initial-letter avatar.
  */
 export const getVerifiedLeaderboard = cache(async (game: GameId): Promise<VerifiedLeaderboardResult> => {
-  const board = await fetchLeaderboard(game);
+  const key = identityResolverKey();
+  const [board, internal] = await Promise.all([getLeaderboard(game), key ? fetchInternalLeaderboard(game) : null]);
   if (board.status !== "available") return board;
   const entries: LeaderboardRow[] = board.entries.map((entry) => ({ ...entry }));
-  const key = identityResolverKey();
+  if (!key || !internal) return { status: "available", game, entries };
+
+  const rowAccounts = alignAccounts(board.entries, internal);
   const unique = new Map<string, string>();
-  for (const account of board.accounts) if (account && !unique.has(accountKey(account))) unique.set(accountKey(account), account);
+  for (const account of rowAccounts) if (account && !unique.has(accountKey(account))) unique.set(accountKey(account), account);
   const accounts = [...unique.values()];
-  if (!key || !accounts.length) return { status: "available", game, entries };
+  if (!accounts.length) return { status: "available", game, entries };
 
   try {
     const verified = await resolveAccounts(accounts, key);
-    board.accounts.forEach((account, index) => {
+    rowAccounts.forEach((account, index) => {
       const match = account && verified.get(accountKey(account));
       if (match) entries[index].account = match;
     });

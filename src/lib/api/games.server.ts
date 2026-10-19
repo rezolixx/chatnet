@@ -38,9 +38,9 @@ class GameApiError extends Error {
   }
 }
 
-async function fetchGameApi(base: string, path: string): Promise<unknown> {
+async function fetchGameApi(base: string, path: string, headers: Record<string, string> = {}): Promise<unknown> {
   const response = await fetch(`${base}${path}`, {
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...headers },
     next: { revalidate: REVALIDATE_SECONDS },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -66,9 +66,10 @@ export function normalizeLeaderboard(value: unknown, game: GameId): LeaderboardE
 
 /**
  * Entries plus, per row, the Anope services account the Game API vouches for
- * (`ircAccount`, docs/verified-game-identities.md), or null. Accounts stay on
- * the server: they are only a resolver input and never part of a
- * LeaderboardEntry, which reaches the browser.
+ * (`ircAccount`, docs/verified-game-identities.md), or null. Only the
+ * authenticated internal route is read for accounts; they stay on the server
+ * as a resolver input and are never part of a LeaderboardEntry, which reaches
+ * the browser.
  */
 export function normalizeLeaderboardWithAccounts(value: unknown, game: GameId): { entries: LeaderboardEntry[]; accounts: (string | null)[] } | null {
   if (!isRecord(value) || value.game !== game || !Array.isArray(value.entries)) return null;
@@ -86,13 +87,9 @@ export function normalizeLeaderboardWithAccounts(value: unknown, game: GameId): 
   return { entries, accounts };
 }
 
-export type LeaderboardFetch =
-  | { status: "not-configured" }
-  | { status: "unavailable" }
-  | { status: "available"; game: GameId; entries: LeaderboardEntry[]; accounts: (string | null)[] };
-
-// One Game API request per render, shared by getLeaderboard and the identity resolver.
-export const fetchLeaderboard = cache(async (game: GameId): Promise<LeaderboardFetch> => {
+// The public route is the only source of displayed rows, ranks and stats. It
+// carries no accounts, and any it might carry are dropped here.
+export const getLeaderboard = cache(async (game: GameId): Promise<LeaderboardResult> => {
   const base = gameApiBase();
   if (base.status === "not-configured") return { status: "not-configured" };
   if (base.status === "invalid") {
@@ -100,18 +97,50 @@ export const fetchLeaderboard = cache(async (game: GameId): Promise<LeaderboardF
     return { status: "unavailable" };
   }
   try {
-    const board = normalizeLeaderboardWithAccounts(await fetchGameApi(base.url, `/api/leaderboards/${game}?limit=${LEADERBOARD_LIMIT}`), game);
-    if (!board) throw new Error("Invalid leaderboard");
-    return { status: "available", game, ...board };
+    const entries = normalizeLeaderboard(await fetchGameApi(base.url, `/api/leaderboards/${game}?limit=${LEADERBOARD_LIMIT}`), game);
+    if (!entries) throw new Error("Invalid leaderboard");
+    return { status: "available", game, entries };
   } catch (error) {
     logGameApiFailure(`leaderboard ${game}`, error);
     return { status: "unavailable" };
   }
 });
 
-export const getLeaderboard = cache(async (game: GameId): Promise<LeaderboardResult> => {
-  const board = await fetchLeaderboard(game);
-  return board.status === "available" ? { status: "available", game, entries: board.entries } : board;
+export const INTERNAL_LEADERBOARD_PATH = "/internal/leaderboards";
+// The Game API's own rule (isValidInternalToken): 32 to 512 printable ASCII characters, no spaces.
+const INTERNAL_TOKEN_PATTERN = /^[\x21-\x7e]{32,512}$/;
+
+/** INTERNAL_GAME_API_TOKEN. Server-only: sent to the Game API and nowhere else, never logged or rendered. */
+export function internalGameApiToken(): string | null {
+  const token = process.env.INTERNAL_GAME_API_TOKEN?.trim();
+  return token && INTERNAL_TOKEN_PATTERN.test(token) ? token : null;
+}
+
+export type InternalLeaderboard = { entries: LeaderboardEntry[]; accounts: (string | null)[] };
+
+/**
+ * `GET /internal/leaderboards/:game` with the Bearer token: the same ranking as
+ * the public route plus each row's verified `ircAccount` (or null). Null when
+ * the token is missing or refused (401/404), the API fails or the answer is
+ * malformed; callers then keep the public leaderboard without verified photos.
+ */
+export const fetchInternalLeaderboard = cache(async (game: GameId): Promise<InternalLeaderboard | null> => {
+  const base = gameApiBase();
+  if (base.status !== "configured") return null;
+  const token = internalGameApiToken();
+  if (!token) {
+    logGameApiFailure(`internal leaderboard ${game}`, new Error("INTERNAL_GAME_API_TOKEN missing or invalid"));
+    return null;
+  }
+  try {
+    // Errors carry only the HTTP status: never the token, the header or the body.
+    const board = normalizeLeaderboardWithAccounts(await fetchGameApi(base.url, `${INTERNAL_LEADERBOARD_PATH}/${game}?limit=${LEADERBOARD_LIMIT}`, { Authorization: `Bearer ${token}` }), game);
+    if (!board) throw new Error("Invalid internal leaderboard");
+    return board;
+  } catch (error) {
+    logGameApiFailure(`internal leaderboard ${game}`, error);
+    return null;
+  }
 });
 
 export const getPlayerProfile = cache(async (routeParam: string): Promise<PlayerProfileResult> => {
