@@ -687,6 +687,8 @@ body:has(.player-dialog[open]) { overflow: hidden; }
 .player-game-planned .game-tile-mark { background: var(--surface-2); color: var(--muted); }
 .player-game-head { display: flex; align-items: center; gap: 14px; }
 .player-game-head h2 { margin: 0; font-size: 20px; }
+.player-game-head .game-tile-mark { overflow: hidden; }
+.player-game-head .game-tile-mark img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: inherit; }
 .player-rank { margin-left: auto; padding: 6px 12px; border-radius: 999px; background: var(--navy); color: #7ce9ef; font-size: 15px; font-weight: 850; }
 .player-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 22px 0 0; }
 .player-stats div { min-width: 0; padding: 14px 8px; border-radius: 12px; background: var(--surface); text-align: center; }

@@ -282,7 +282,9 @@ test("/jeux/joueurs/[pseudo]: flags off or a failing endpoint keep today's page"
     const html = await h.playerPage("aYmen");
     assert.match(html, /data-avatar="initial"><span>A<\/span><\/span>/);
     assert.match(html, /pas forcément associé à un compte membre Chatnet du même nom/);
-    assert.doesNotMatch(html, /href="\/membre\/|<img/);
+    // Decorative QuizBot art is allowed; it does not imply a member avatar or profile link.
+    assert.doesNotMatch(html, /href="\/membre\/|data-avatar="member"|data-avatar="nickname-owner"/);
+    assert.match(html, /quizbot\.webp/);
     assert.match(html, /<dt>Points<\/dt><dd>99<\/dd>/);
     assert.equal(h.internalCalls().length, 0);
     assert.equal(h.verifiedCalls().length, 0);
