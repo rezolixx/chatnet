@@ -1,0 +1,128 @@
+/* Chatnet magazine. Scoped to the /blog route, with shared light/dark tokens. */
+.chatnet-blog { overflow: clip; }
+.chatnet-blog-hero { position: relative; isolation: isolate; border-bottom: 1px solid var(--border); background: radial-gradient(circle at 78% 46%, rgba(0,201,219,.11), transparent 30%), linear-gradient(115deg, var(--surface), var(--background) 60%); }
+.chatnet-blog-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .23; background-image: radial-gradient(var(--muted) .65px, transparent .65px); background-size: 22px 22px; mask-image: linear-gradient(to right, transparent 35%, black); }
+.chatnet-blog-hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 7%; min-height: 520px; padding-block: 64px 72px; }
+.chatnet-blog-hero-content { position: relative; z-index: 2; }
+.chatnet-blog-hero-content .eyebrow { display: inline-flex; align-items: center; gap: 10px; }
+.chatnet-blog-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--online); box-shadow: 0 0 0 5px color-mix(in srgb, var(--online), transparent 80%); }
+.chatnet-blog-hero-content h1 { max-width: 680px; margin: 26px 0 23px; font-size: clamp(41px, 4.65vw, 64px); font-weight: 850; letter-spacing: -.06em; line-height: 1.12; }
+.chatnet-blog-hero-content h1 em { color: var(--accent-text); font-style: normal; }
+.chatnet-blog-hero-content > p { max-width: 500px; margin: 0 0 30px; color: var(--muted); line-height: 1.85; font-size: 16px; }
+.chatnet-blog-hero-art { position: relative; width: min(100%, 480px); aspect-ratio: 1.2; justify-self: center; }
+.chatnet-blog-art-disc { position: absolute; inset: 13% 4% 5%; border-radius: 50%; background: linear-gradient(140deg, color-mix(in srgb, var(--cyan) 30%, var(--surface-2)), var(--surface)); box-shadow: inset 0 0 0 1px var(--border); }
+.chatnet-blog-art-disc::before, .chatnet-blog-art-disc::after { content: ""; position: absolute; inset: 12%; border: 1px dashed color-mix(in srgb, var(--accent-text), transparent 60%); border-radius: 50%; }
+.chatnet-blog-art-disc::after { inset: 25%; }
+.chatnet-blog-art-top { position: absolute; inset: 16% auto auto 15%; display: flex; align-items: center; gap: 18px; padding: 20px 23px; background: var(--navy); border-radius: 20px; color: white; transform: rotate(-6deg); box-shadow: 0 20px 45px rgba(3,25,44,.22); }
+.chatnet-blog-art-top svg { color: #38d9e6; }
+.chatnet-blog-art-top > span { font-size: clamp(19px, 2.2vw, 27px); font-weight: 850; letter-spacing: -.03em; line-height: 1.13; }
+.chatnet-blog-dot { color: #00c9db; }
+.chatnet-blog-art-bubble { position: absolute; max-width: 270px; padding: 17px 22px; border: 1px solid var(--border); border-radius: 17px; background: var(--card); color: var(--foreground); box-shadow: var(--shadow); font-size: 14px; font-weight: 650; }
+.chatnet-blog-art-bubble.a { top: 50%; right: 3%; transform: rotate(5deg); }
+.chatnet-blog-art-bubble.a span { margin-left: 24px; }
+.chatnet-blog-art-bubble.b { bottom: 13%; left: 2%; transform: rotate(-4deg); background: var(--cyan-light); border-color: color-mix(in srgb, var(--cyan), var(--border) 50%); }
+.chatnet-blog-art-orbit { position: absolute; bottom: 1%; right: 10%; color: var(--accent-text); letter-spacing: .2em; font-size: 9px; font-weight: 850; }
+
+.chatnet-blog-listing { padding-block: 80px 110px; }
+.chatnet-blog-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 35px; margin-bottom: 34px; }
+.chatnet-blog-toolbar h2 { margin: 11px 0 8px; font-size: clamp(29px, 3vw, 40px); font-weight: 820; letter-spacing: -.05em; }
+.chatnet-blog-toolbar p { margin: 0; color: var(--muted); font-size: 14px; }
+.chatnet-blog-search { width: min(100%, 345px); display: flex; align-items: center; min-height: 54px; gap: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 6px 6px 6px 16px; background: var(--card); box-shadow: 0 6px 18px rgba(7,29,55,.04); }
+.chatnet-blog-search > svg { flex: 0 0 auto; color: var(--muted); }
+.chatnet-blog-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font-size: 13px; }
+.chatnet-blog-search input:focus-visible { outline: 0; }
+.chatnet-blog-search:focus-within { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.chatnet-blog-search button { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; background: var(--navy); border: 0; border-radius: 8px; color: white; }
+.chatnet-blog-search button:hover { background: var(--navy-light); }
+.chatnet-blog-results { color: var(--muted); font-size: 14px; margin: 0 0 27px; }
+.chatnet-blog-results a { margin-left: 12px; text-decoration: underline; color: var(--accent-text); }
+.chatnet-blog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+.chatnet-blog-card { display: flex; flex-direction: column; overflow: hidden; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 9px 30px rgba(7,29,55,.045); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.chatnet-blog-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--cyan), var(--border)); box-shadow: var(--shadow); }
+.chatnet-blog-card-media { position: relative; display: block; aspect-ratio: 16/10; overflow: hidden; background: var(--surface-2); }
+.chatnet-blog-card-media img { object-fit: cover; transition: transform .4s ease; }
+.chatnet-blog-card:hover .chatnet-blog-card-media img { transform: scale(1.04); }
+.chatnet-blog-card-placeholder { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 8px; color: var(--accent-text); background: radial-gradient(circle at 70% 20%, color-mix(in srgb, var(--cyan) 18%, transparent), transparent 42%), repeating-linear-gradient(125deg, transparent, transparent 20px, color-mix(in srgb, var(--cyan) 8%, transparent) 21px, transparent 22px), var(--surface-2); }
+.chatnet-blog-card-placeholder > span { font-size: 24px; letter-spacing: -.07em; color: var(--foreground); font-weight: 900; }
+.chatnet-blog-card-content { display: flex; flex: 1; flex-direction: column; padding: 25px 25px 20px; }
+.chatnet-blog-card-category { display: block; width: fit-content; padding: 6px 9px; background: var(--cyan-light); border-radius: 6px; color: var(--accent-text); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; font-weight: 850; }
+.chatnet-blog-card h2 { margin: 18px 0 12px; font-size: 21px; line-height: 1.35; font-weight: 790; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.chatnet-blog-card h2 a:hover { color: var(--accent-text); }
+.chatnet-blog-card-content > p { margin: 0 0 24px; color: var(--muted); font-size: 13px; line-height: 1.8; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.chatnet-blog-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 16px; margin-top: auto; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; font-weight: 650; }
+.chatnet-blog-card-footer a { color: var(--accent-text); display: inline-grid; place-items: center; }
+.chatnet-blog-empty { max-width: 660px; margin: 40px auto 20px; padding: 50px 25px; text-align: center; }
+.chatnet-blog-empty-icon { width: 74px; height: 74px; border-radius: 21px; display: grid; place-items: center; margin: 0 auto 24px; background: var(--cyan-light); color: var(--accent-text); }
+.chatnet-blog-empty h1, .chatnet-blog-empty h2 { font-size: 29px; line-height: 1.25; letter-spacing: -.035em; margin: 0 0 15px; }
+.chatnet-blog-empty p { color: var(--muted); line-height: 1.8; margin: 0 0 25px; }
+.chatnet-blog-empty-actions { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.chatnet-blog-pagination { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 55px; font-size: 13px; font-weight: 700; }
+.chatnet-blog-pagination a { padding: 10px 17px; border-radius: 8px; border: 1px solid var(--border); }
+.chatnet-blog-pagination a:hover { border-color: var(--accent-text); color: var(--accent-text); }
+.chatnet-blog-pagination .disabled { color: var(--muted); opacity: .55; }
+
+.chatnet-blog-breadcrumb { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; padding-block: 26px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.chatnet-blog-breadcrumb a:hover { color: var(--accent-text); }
+.chatnet-blog-breadcrumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; color: var(--foreground); }
+.chatnet-blog-article-header { max-width: 900px; padding: 46px 0 43px; text-align: center; }
+.chatnet-blog-article-header h1 { margin: 16px auto 21px; font-size: clamp(36px, 4.75vw, 62px); line-height: 1.15; max-width: 850px; font-weight: 850; letter-spacing: -.055em; overflow-wrap: anywhere; }
+.chatnet-blog-article-header > p { margin: 0 auto; max-width: 750px; color: var(--muted); font-size: clamp(16px, 1.6vw, 19px); line-height: 1.72; }
+.chatnet-blog-article-meta { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 11px; margin-top: 29px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.chatnet-blog-author-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: var(--cyan); display: inline-grid; place-items: center; }
+.chatnet-blog-article-cover { position: relative; width: 100%; aspect-ratio: 2.3; border-radius: 22px; background: var(--surface-2); overflow: hidden; }
+.chatnet-blog-article-cover img { object-fit: cover; }
+.chatnet-blog-article-columns { max-width: 1080px; display: grid; grid-template-columns: minmax(0, 720px) 260px; justify-content: space-between; align-items: start; gap: 64px; padding-top: 62px; padding-bottom: 94px; }
+.chatnet-blog-prose { min-width: 0; font-size: 16px; color: var(--foreground); line-height: 1.95; overflow-wrap: anywhere; }
+.chatnet-blog-prose p { margin: 0 0 26px; }
+.chatnet-blog-prose h2 { margin: 44px 0 16px; font-size: 29px; line-height: 1.35; font-weight: 800; letter-spacing: -.035em; }
+.chatnet-blog-prose h3 { margin: 30px 0 13px; font-size: 21px; font-weight: 790; }
+.chatnet-blog-prose h2:first-child, .chatnet-blog-prose h3:first-child { margin-top: 0; }
+.chatnet-blog-prose ul, .chatnet-blog-prose ol { padding-left: 26px; margin: 0 0 26px; }
+.chatnet-blog-prose li { margin-bottom: 9px; padding-left: 4px; }
+.chatnet-blog-prose ul li::marker { color: var(--accent-text); }
+.chatnet-blog-prose blockquote { margin: 33px 0; padding: 18px 24px; border-left: 4px solid var(--cyan); background: var(--surface); border-radius: 0 12px 12px 0; color: var(--foreground); font-size: 18px; font-weight: 650; line-height: 1.7; }
+.chatnet-blog-table-scroll { max-width: 100%; overflow-x: auto; margin: 26px 0; }
+.chatnet-blog-table-scroll table { width: 100%; border-collapse: collapse; min-width: 380px; font-size: 13px; line-height: 1.5; }
+.chatnet-blog-table-scroll th, .chatnet-blog-table-scroll td { padding: 12px 13px; border: 1px solid var(--border); text-align: left; }
+.chatnet-blog-table-scroll th { background: var(--surface-2); }
+.chatnet-blog-article-aside { position: sticky; top: 115px; padding: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.chatnet-blog-article-aside > div { width: 53px; height: 53px; margin-bottom: 20px; display: grid; place-items: center; background: var(--cyan-light); border-radius: 13px; color: var(--accent-text); }
+.chatnet-blog-article-aside h2 { font-size: 20px; line-height: 1.4; margin: 0 0 11px; letter-spacing: -.035em; }
+.chatnet-blog-article-aside p { color: var(--muted); font-size: 13px; line-height: 1.75; margin: 0 0 23px; }
+.chatnet-blog-article-aside .button { white-space: normal; text-align: center; }
+.chatnet-blog-related { padding-bottom: 110px; }
+.chatnet-blog-related-head { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 22px; margin-bottom: 32px; }
+.chatnet-blog-related-head h2 { margin: 12px 0 0; font-size: clamp(28px, 3vw, 38px); letter-spacing: -.045em; }
+
+@media (max-width: 1050px) {
+  .chatnet-blog-hero-grid { gap: 20px; }
+  .chatnet-blog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chatnet-blog-article-columns { grid-template-columns: minmax(0, 1fr) 230px; gap: 35px; }
+}
+@media (max-width: 780px) {
+  .chatnet-blog-hero-grid { grid-template-columns: minmax(0, 1fr); padding-block: 60px 42px; gap: 18px; }
+  .chatnet-blog-hero-art { width: min(100%, 360px); }
+  .chatnet-blog-toolbar { align-items: stretch; flex-direction: column; gap: 24px; }
+  .chatnet-blog-search { width: 100%; max-width: none; }
+  .chatnet-blog-listing { padding-block: 60px 85px; }
+  .chatnet-blog-article-columns { grid-template-columns: 1fr; padding-top: 42px; padding-bottom: 65px; }
+  .chatnet-blog-article-aside { position: static; max-width: 460px; }
+  .chatnet-blog-article-cover { aspect-ratio: 16/10; }
+}
+@media (max-width: 570px) {
+  .chatnet-blog-hero-content h1 { font-size: 39px; }
+  .chatnet-blog-hero-art { aspect-ratio: 1.6; width: min(100%, 340px); margin-block: 10px 20px; }
+  .chatnet-blog-art-top { padding: 13px 16px; gap: 10px; }
+  .chatnet-blog-art-top > span { font-size: 17px; }
+  .chatnet-blog-art-bubble { padding: 11px 13px; font-size: 11px; }
+  .chatnet-blog-grid { grid-template-columns: 1fr; gap: 20px; }
+  .chatnet-blog-card-content { padding: 21px; }
+  .chatnet-blog-pagination { gap: 13px; }
+  .chatnet-blog-article-header { padding-block: 20px 30px; }
+  .chatnet-blog-article-header h1 { font-size: 35px; }
+  .chatnet-blog-prose h2 { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chatnet-blog-card, .chatnet-blog-card-media img { transition: none; }
+  .chatnet-blog-card:hover, .chatnet-blog-card:hover .chatnet-blog-card-media img { transform: none; }
+}
