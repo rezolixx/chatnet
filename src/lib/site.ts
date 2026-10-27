@@ -8,6 +8,7 @@ export const site = {
     { label: "Salons", href: "/salons" },
     { label: "Communauté", href: "/communaute" },
     { label: "Jeux", href: "/jeux" },
+    { label: "Blog", href: "/blog" },
     { label: "À propos", href: "/a-propos" },
   ],
 } as const;
