@@ -6,6 +6,7 @@ const css = readFileSync(new URL("../src/app/blog/blog.css", import.meta.url), "
 
 test("article cover fills the width without cropping square photographs", () => {
   assert.match(css, /\.chatnet-blog-article-cover img \{ display: block; width: 100%; height: auto; object-fit: contain; \}/);
+  assert.match(css, /\.chatnet-blog-article-cover \{ width: min\(100%, 920px\); margin-inline: auto;/);
   assert.doesNotMatch(css, /\.chatnet-blog-article-cover \{[^}]*height: clamp\(/);
   assert.doesNotMatch(css, /\.chatnet-blog-article-cover img\s*\{\s*object-fit: cover;/);
   const page = readFileSync(new URL("../src/app/blog/[slug]/page.tsx", import.meta.url), "utf8");
