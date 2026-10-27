@@ -69,7 +69,7 @@
 .chatnet-blog-article-header > p { margin: 0 auto; max-width: 750px; color: var(--muted); font-size: clamp(16px, 1.6vw, 19px); line-height: 1.72; }
 .chatnet-blog-article-meta { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 11px; margin-top: 29px; color: var(--muted); font-size: 12px; font-weight: 650; }
 .chatnet-blog-author-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: var(--cyan); display: inline-grid; place-items: center; }
-.chatnet-blog-article-cover { width: min(100%, 920px); margin-inline: auto; border-radius: 22px; background: var(--surface-2); overflow: hidden; }
+.chatnet-blog-article-cover { width: min(100%, 800px); margin-inline: auto; border-radius: 22px; background: var(--surface-2); overflow: hidden; }
 .chatnet-blog-article-cover img { display: block; width: 100%; height: auto; object-fit: contain; }
 .chatnet-blog-article-columns { max-width: 1080px; display: grid; grid-template-columns: minmax(0, 720px) 260px; justify-content: space-between; align-items: start; gap: 64px; padding-top: 62px; padding-bottom: 94px; }
 .chatnet-blog-prose { min-width: 0; font-size: 16px; color: var(--foreground); line-height: 1.95; overflow-wrap: anywhere; }
