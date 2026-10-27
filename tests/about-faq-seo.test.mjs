@@ -43,6 +43,7 @@ const CONFIRMED_INTERNAL_HREFS = new Set([
   "/communaute",
   "/communaute#valeurs",
   "/jeux",
+  "/blog",
   "/a-propos",
   "/contact",
   "/assistance",
@@ -101,6 +102,7 @@ function createHarness({ document = { getElementById: () => null } } = {}) {
     const localRequire = (specifier) => {
       if (specifier === "react") return hooks;
       if (specifier === "server-only" || specifier.endsWith(".css")) return {};
+      if (specifier === "@/lib/blog/api.server") return { blogSitemap: async () => [] };
       if (specifier === "next/cache") return { unstable_cache: (fn) => fn };
       if (specifier === "next/font/local") return () => ({ variable: "--font-geist" });
       if (specifier === "next/link") {
@@ -364,7 +366,7 @@ test("internal links across About section, FAQ, /a-propos, and Footer use only c
   assert.equal(aboutPageMod.metadata.alternates.canonical, "https://chatnet.fr/a-propos");
 });
 
-test("SEO metadata, canonical URL, robots.txt, and sitemap remain intact without regression", () => {
+test("SEO metadata, canonical URL, robots.txt, and sitemap remain intact without regression", async () => {
   const harness = createHarness();
   const layoutMod = harness.load("app/layout.tsx");
   const sitemapMod = harness.load("app/sitemap.ts");
@@ -389,7 +391,7 @@ test("SEO metadata, canonical URL, robots.txt, and sitemap remain intact without
     "/contact",
   ]);
 
-  const sitemapEntries = JSON.parse(JSON.stringify(sitemapMod.default()));
+  const sitemapEntries = JSON.parse(JSON.stringify(await sitemapMod.default()));
   assert.equal(sitemapEntries.length, 7);
   assert.equal(sitemapEntries[0].url, "https://chatnet.fr/");
   assert.equal(sitemapEntries[0].priority, 1);
