@@ -1,0 +1,21 @@
+.channel-request-card { width: min(100%, 720px); }
+.channel-request-card form { display: grid; gap: 20px; margin-top: 24px; }
+.channel-request-card .chat-join-field { display: grid; gap: 8px; }
+.channel-request-card .chat-join-field select,
+.channel-request-card .chat-join-field textarea { width: 100%; min-height: 46px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
+.channel-request-card .chat-join-field textarea { resize: vertical; line-height: 1.6; }
+.channel-request-card .chat-join-field :is(select,textarea):focus-visible { outline: 3px solid var(--cyan-light); border-color: var(--accent-text); }
+.channel-request-card .chat-join-field :is(select,textarea)[aria-invalid="true"] { border-color: #c74444; }
+.channel-request-card .channel-request-consent { display: flex; align-items: flex-start; gap: 11px; font-size: 13px; line-height: 1.6; }
+.channel-request-card .channel-request-consent input { margin-top: 5px; accent-color: var(--accent-text); }
+.channel-request-card .channel-request-consent a { color: var(--accent-text); text-decoration: underline; }
+.channel-request-card .channel-request-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.channel-request-card .field-error { color: #c74444; font-size: 13px; }
+.channel-request-history { margin-top: 42px; border-top: 1px solid var(--border); padding-top: 24px; }
+.channel-request-history h3 { font-size: 20px; margin: 0 0 18px; }
+.channel-request-history ul { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; }
+.channel-request-history li { padding: 19px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow-wrap: anywhere; }
+.channel-request-history li p { margin: 9px 0; font-size: 13px; color: var(--muted); }
+.channel-request-history-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.channel-request-history-head span { padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; color: var(--accent-text); background: var(--cyan-light); }
+.channel-request-history .channel-request-reason { color: var(--foreground); }
