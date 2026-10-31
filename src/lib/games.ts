@@ -97,7 +97,7 @@ export interface CurrentNicknameOwner {
 }
 
 // The wording for a current nickname owner: never "verified player", never authorship of the points.
-export const NICKNAME_OWNER_LABEL = "Profil actuellement associé à ce pseudo IRC";
+export const NICKNAME_OWNER_LABEL = "Profil actuellement associé à ce pseudo de chat";
 export const NICKNAME_OWNER_CAVEAT = "Ce membre n’a pas forcément marqué les points affichés : ils peuvent dater d’avant son enregistrement du pseudo.";
 
 /** Who a game nickname points to. A verified account always wins over a current nickname owner. */

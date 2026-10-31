@@ -94,7 +94,7 @@ export function ChannelRequestForm() {
       if (response.status === 422) { setErrors(safeChannelRequestErrors(body)); setFormError("Vérifiez les champs de votre demande."); return; }
       if (!response.ok) {
         const messages: Record<number, string> = {
-          403: "Un compte NickServ vérifié et lié à votre profil est nécessaire.",
+          403: "Votre profil Chatnet doit être vérifié pour demander un salon.",
           404: "Cette demande n'est plus modifiable.",
           409: "Ce salon existe déjà, ou la demande n'est plus modifiable.",
           429: "Deux demandes en cours maximum par membre. Réessayez plus tard.",
@@ -111,15 +111,15 @@ export function ChannelRequestForm() {
   }
 
   if (loading) return <p role="status">Vérification de votre session…</p>;
-  if (!user) return <><h2>Connectez-vous pour proposer un salon.</h2><p>La demande est réservée aux membres Chatnet. Vous devez également disposer d’un compte NickServ vérifié.</p><Link href="/connexion" className="button button-primary">Se connecter</Link></>;
+  if (!user) return <><h2>Connectez-vous pour proposer un salon.</h2><p>La demande est réservée aux membres Chatnet disposant d’un profil vérifié.</p><Link href="/connexion" className="button button-primary">Se connecter</Link></>;
   if (availability === "loading") return <p role="status">Chargement de vos demandes…</p>;
-  if (availability === "disabled") return <><span className="eyebrow">Bientôt disponible</span><h2>Les demandes de salons arrivent.</h2><p>La page est en place, mais le service de validation et l’activation IRC ne sont pas encore ouverts. Aucun salon ne sera créé avant leur mise en service.</p><Link href="/salons" className="button button-outline">Voir les salons existants</Link></>;
+  if (availability === "disabled") return <><span className="eyebrow">Bientôt disponible</span><h2>Les demandes de salons arrivent.</h2><p>La page est prête, mais la validation et l’ouverture des nouveaux salons ne sont pas encore activées. Aucune demande ne peut être envoyée pour le moment.</p><Link href="/salons" className="button button-outline">Voir les salons existants</Link></>;
   if (availability === "unavailable") return <><h2>Service momentanément indisponible.</h2><p>Impossible de consulter vos demandes pour le moment.</p><button type="button" className="button button-outline" onClick={() => { setAvailability("loading"); void reload(); }}>Réessayer</button></>;
 
   return <>
     <span className="eyebrow">Demande de création</span>
-    <h2 id="channel-request-form">{revisionId ? `Modifier la demande ${channel}` : "Proposez votre salon IRC."}</h2>
-    <p>Votre demande est examinée par un administrateur. Un compte NickServ vérifié, lié à votre profil Chatnet, est nécessaire. L’approbation ne crée pas immédiatement le salon.</p>
+    <h2 id="channel-request-form">{revisionId ? `Modifier la demande ${channel}` : "Proposez votre salon."}</h2>
+    <p>Votre demande est examinée par l’équipe. Votre compte Chatnet doit être vérifié. L’approbation ne crée pas immédiatement le salon.</p>
     <form onSubmit={submit} aria-busy={submitting} noValidate>
       <div className="chat-join-field"><label htmlFor="request-channel">Nom du salon</label><input id="request-channel" name="channel" value={channel} onChange={(event) => setChannel(event.target.value)} placeholder="#MonSalon" maxLength={34} required disabled={submitting || !!revisionId} aria-invalid={!!errors.channel} />{errors.channel && <span className="field-error" role="alert">{errors.channel}</span>}</div>
       <div className="chat-join-field"><label htmlFor="request-category">Catégorie</label><select id="request-category" name="category" value={category} onChange={(event) => setCategory(event.target.value as ChannelCategory)} disabled={submitting}>{channelCategories.map((key) => <option key={key} value={key}>{categoryNames[key]}</option>)}</select>{errors.category && <span className="field-error" role="alert">{errors.category}</span>}</div>

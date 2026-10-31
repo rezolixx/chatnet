@@ -38,14 +38,14 @@ export function PlayerProfileDialog({ player, onClose }: { player: LeaderboardRo
       <button type="button" className="player-dialog-close" onClick={close} aria-label="Fermer la fiche du joueur"><Icon name="close" size={18} /></button>
       <div className="player-dialog-head">
         <PlayerAvatar nickname={player.nickname} identity={player} size={72} />
-        <div><span className="eyebrow">Joueur IRC</span><h2 id={titleId}>{player.nickname}</h2><span className="player-rank">{rankLabel(player.rank)}<span className="sr-only"> au classement du Quiz</span></span></div>
+        <div><span className="eyebrow">Joueur Chatnet</span><h2 id={titleId}>{player.nickname}</h2><span className="player-rank">{rankLabel(player.rank)}<span className="sr-only"> au classement du Quiz</span></span></div>
       </div>
       <dl className="player-stats"><div><dt>Points</dt><dd>{formatCount(player.points)}</dd></div><div><dt>Parties jouées</dt><dd>{formatCount(player.gamesPlayed)}</dd></div><div><dt>Victoires</dt><dd>{formatCount(player.wins)}</dd></div></dl>
       {player.account
         ? <p className="player-dialog-note player-dialog-verified"><Icon name="shield" size={16} /> Compte membre vérifié : {player.account.nickname}</p>
         : player.nicknameOwner
           ? <p className="player-dialog-note player-dialog-owner"><Icon name="shield" size={16} /> <span>{NICKNAME_OWNER_LABEL} : <strong>{player.nicknameOwner.nickname}</strong>. {NICKNAME_OWNER_CAVEAT}</span></p>
-          : <p className="player-dialog-note"><Icon name="shield" size={16} /> Pseudo IRC des salons de jeu, pas forcément associé à un compte membre Chatnet du même nom.</p>}
+          : <p className="player-dialog-note"><Icon name="shield" size={16} /> Pseudo utilisé dans les salons de jeu, pas forcément associé à un compte membre Chatnet du même nom.</p>}
       <div className="player-dialog-actions">
         <Link href={playerHref(player.nickname)} className="button button-primary">Statistiques complètes <Icon name="arrow" size={16} /></Link>
         {player.account && <Link href={player.account.profileHref} className="button button-outline">Profil membre<span className="sr-only"> de {player.account.nickname}</span></Link>}

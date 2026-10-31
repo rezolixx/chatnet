@@ -11,7 +11,7 @@ export type AccountDeletionErrors = { password?: string; confirmation?: string }
 export type DeletedIrc = "removed" | "absent" | "skipped" | "uncertain";
 
 export const accountDeletionMessages = {
-  warning: "Cette action est irréversible. Votre compte, votre pseudo IRC (NickServ) et vos commentaires seront supprimés, sur chatnet.fr comme sur discut.org, qui utilisent le même compte.",
+  warning: "Cette action est irréversible. Votre compte, votre pseudo utilisé dans les salons et vos commentaires seront supprimés, sur chatnet.fr comme sur discut.org, qui utilisent le même compte.",
   passwordRequired: "Entrez votre mot de passe actuel.",
   confirmationRequired: `Tapez ${DELETION_CONFIRMATION_WORD} pour confirmer la suppression définitive.`,
   wrongPassword: "Mot de passe incorrect.",
@@ -21,14 +21,14 @@ export const accountDeletionMessages = {
   protectedAccount: "Ce compte ne peut pas être supprimé depuis le site. Contactez l'équipe. Rien n'a été supprimé.",
   tooMany: "Trop de tentatives. Réessayez dans une minute.",
   incomplete: "La suppression n'a pas pu être terminée. Votre compte est bloqué en attendant : réessayez dans quelques minutes.",
-  ircRefused: "Le service IRC a refusé la suppression de votre pseudo. Rien n'a été supprimé : réessayez plus tard.",
-  ircUnavailable: "Le service IRC ne répond pas. Rien n'a été supprimé : réessayez dans quelques minutes.",
+  ircRefused: "La suppression de votre pseudo de chat a été refusée. Rien n'a été supprimé : réessayez plus tard.",
+  ircUnavailable: "Le service de chat ne répond pas. Rien n'a été supprimé : réessayez dans quelques minutes.",
   unavailable: "La suppression est temporairement indisponible. Rien n'a été supprimé.",
   unconfirmed: "La suppression n'a pas pu être confirmée. Rechargez la page pour vérifier l'état de votre compte avant de réessayer.",
   deleted: "Votre compte a été supprimé définitivement.",
-  deletedWithIrc: "Votre compte et votre pseudo IRC ont été supprimés définitivement.",
-  deletedIrcKept: "Votre compte a été supprimé définitivement. Votre pseudo IRC n'était pas relié à votre compte et n'a pas été supprimé : il expirera après 365 jours sans connexion au chat.",
-  ircPending: "Votre compte a été supprimé. La suppression de votre pseudo IRC est en cours de vérification et sera terminée automatiquement.",
+  deletedWithIrc: "Votre compte et votre pseudo de chat ont été supprimés définitivement.",
+  deletedIrcKept: "Votre compte a été supprimé définitivement. Votre pseudo de chat n'était pas relié à votre compte et n'a pas été supprimé : il expirera après 365 jours sans connexion au chat.",
+  ircPending: "Votre compte a été supprimé. La suppression de votre pseudo de chat est en cours de vérification et sera terminée automatiquement.",
 } as const;
 
 const PASSWORD_MAX_LENGTH = 255;

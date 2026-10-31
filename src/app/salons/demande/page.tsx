@@ -4,8 +4,8 @@ import { ChannelRequestForm } from "@/components/rooms/ChannelRequestForm";
 import "./channel-request.css";
 
 export const metadata: Metadata = {
-  title: "Demander un salon IRC",
-  description: "Proposez la création d’un salon IRC à l’équipe Chatnet.",
+  title: "Demander un salon",
+  description: "Proposez la création d’un salon de discussion à l’équipe Chatnet.",
   alternates: { canonical: "/salons/demande" },
   robots: { index: false, follow: true },
 };
