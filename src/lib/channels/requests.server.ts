@@ -98,7 +98,7 @@ export async function handleChannelRequests(request: NextRequest, method: Reques
     if (upstream.status === 404) return withBridge(method === "PUT"
       ? error(404, "NOT_FOUND", "Demande introuvable ou plus modifiable.")
       : error(404, "FEATURE_UNAVAILABLE", "Les demandes de salons ne sont pas encore ouvertes."), cookies, current);
-    if (upstream.status === 403) return withBridge(error(403, "IDENTITY_REQUIRED", "Un compte NickServ vérifié et lié à votre profil est nécessaire."), cookies, current);
+    if (upstream.status === 403) return withBridge(error(403, "IDENTITY_REQUIRED", "Votre profil Chatnet doit être vérifié pour demander un salon."), cookies, current);
     if (upstream.status === 409) return withBridge(error(409, "CONFLICT", "Le nom est déjà pris, ou cette demande ne peut plus être modifiée."), cookies, current);
     if (upstream.status === 422) {
       const errors = safeChannelRequestErrors(await upstream.json().catch(() => null));
