@@ -153,6 +153,24 @@ test("upstream conflicts, validation and unexpected acknowledgements are sanitiz
     assert.equal(response.status, status);
     assert.equal((await payload(response)).code, code);
   }
+  const quota = harness([json({ nickname: "Member" }), csrf(), json({ code: "ACTIVE_REQUEST_LIMIT", message: "PRIVATE_TOKEN" }, 409)]);
+  const quotaResponse = await quota.route.POST(request("POST"));
+  assert.equal(quotaResponse.status, 409);
+  assert.equal((await payload(quotaResponse)).code, "ACTIVE_REQUEST_LIMIT");
+  const reserved = harness([json({ nickname: "Member" }), csrf(), json({ message: "Ce nom de salon est reserve." }, 409)]);
+  const reservedResponse = await reserved.route.POST(request("POST"));
+  assert.equal(reservedResponse.status, 409);
+  assert.equal((await payload(reservedResponse)).code, "NAME_RESERVED");
+  const throttled = harness([json({ nickname: "Member" }), csrf(), json({ message: "PRIVATE_TOKEN" }, 429, { "Retry-After": "42" })]);
+  const throttledResponse = await throttled.route.POST(request("POST"));
+  assert.equal(throttledResponse.status, 429);
+  const throttledBody = await payload(throttledResponse);
+  assert.equal(throttledBody.code, "RATE_LIMITED");
+  assert.match(throttledBody.message, /1 minute/);
+  assert.doesNotMatch(throttledBody.message, /Deux demandes/);
+  const formSource = readFileSync(resolve(sourceRoot, "components/rooms/ChannelRequestForm.tsx"), "utf8");
+  assert.match(formSource, /body.code === "ACTIVE_REQUEST_LIMIT"/);
+  assert.match(formSource, /body.code === "RATE_LIMITED"/);
   const validation = harness([json({ nickname: "Member" }), csrf(), json({ errors: { channel: ["PRIVATE_TOKEN"], founder_uniqueid: ["PRIVATE_TOKEN"] } }, 422)]);
   const response = await validation.route.POST(request("POST"));
   assert.deepEqual(Object.keys((await payload(response)).errors), ["channel"]);
