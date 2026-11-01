@@ -99,12 +99,29 @@ export async function handleChannelRequests(request: NextRequest, method: Reques
       ? error(404, "NOT_FOUND", "Demande introuvable ou plus modifiable.")
       : error(404, "FEATURE_UNAVAILABLE", "Les demandes de salons ne sont pas encore ouvertes."), cookies, current);
     if (upstream.status === 403) return withBridge(error(403, "IDENTITY_REQUIRED", "Votre profil Chatnet doit être vérifié pour demander un salon."), cookies, current);
-    if (upstream.status === 409) return withBridge(error(409, "CONFLICT", "Le nom est déjà pris, ou cette demande ne peut plus être modifiée."), cookies, current);
+    if (upstream.status === 409) {
+      const raw = await upstream.json().catch(() => null);
+      const conflict = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+      if (conflict.code === "ACTIVE_REQUEST_LIMIT") {
+        return withBridge(error(409, "ACTIVE_REQUEST_LIMIT", "Vous avez déjà deux demandes de salons en cours."), cookies, current);
+      }
+      if (conflict.message === "Ce nom de salon est reserve.") {
+        return withBridge(error(409, "NAME_RESERVED", "Ce nom de salon est réservé. Choisissez un autre nom."), cookies, current);
+      }
+      return withBridge(error(409, "CONFLICT", "Le nom est déjà pris, ou cette demande ne peut plus être modifiée."), cookies, current);
+    }
     if (upstream.status === 422) {
       const errors = safeChannelRequestErrors(await upstream.json().catch(() => null));
       return withBridge(error(422, "VALIDATION_ERROR", "Vérifiez les informations de votre demande.", errors), cookies, current);
     }
-    if (upstream.status === 429) return withBridge(error(429, "RATE_LIMITED", "Deux demandes en cours maximum par membre. Réessayez plus tard."), cookies, current);
+    if (upstream.status === 429) {
+      const retry = upstream.headers.get("Retry-After");
+      const seconds = retry && /^\d{1,4}$/.test(retry) ? Number(retry) : 0;
+      const minutes = seconds > 0 ? Math.ceil(seconds / 60) : null;
+      const message = minutes === null ? "Trop de tentatives. Réessayez dans quelques instants."
+        : "Trop de tentatives. Réessayez dans " + minutes + " minute" + (minutes > 1 ? "s" : "") + ".";
+      return withBridge(error(429, "RATE_LIMITED", message), cookies, current);
+    }
 
     if (method === "GET") {
       if (upstream.status !== 200) return withBridge(error(503, "UNAVAILABLE", unavailable), cookies, current);
