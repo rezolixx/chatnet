@@ -10,7 +10,7 @@ export type ChannelRequestInput = {
 };
 
 export type ChannelRequestErrors = Partial<Record<keyof ChannelRequestInput, string>>;
-export type ChannelRequestStatus = "pending" | "changes_requested" | "rejected" | "approved_provisioning" | "provisioning_failed" | "active" | "suspended";
+export type ChannelRequestStatus = "pending" | "changes_requested" | "rejected" | "approved_provisioning" | "provisioning_failed" | "active" | "suspended" | "dropped";
 
 export type OwnChannelRequest = {
   id: string;
@@ -33,6 +33,7 @@ export const channelStatusLabels: Record<ChannelRequestStatus, string> = {
   provisioning_failed: "Activation en attente de vérification",
   active: "Salon actif",
   suspended: "Salon suspendu",
+  dropped: "Salon fermé après suppression de l’enregistrement",
 };
 
 export const channelRequestMessages: Record<keyof ChannelRequestInput, string> = {
