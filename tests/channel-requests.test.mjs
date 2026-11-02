@@ -82,6 +82,16 @@ test("channel fields are strictly validated; extra identities/status cannot be s
   assert.equal(projectOwnChannelRequests({ requests: [{ id, status: "admin", channel: input.channel }] }), null);
 });
 
+test("released channel remains visible in member history without leaking internal fields", () => {
+  const old = { id, channel: input.channel, category: input.category,
+    description: input.description, topic: input.topic, founder_display: "Founder",
+    status: "dropped", rejection_reason: null, created_at: "2026-10-31",
+    updated_at: "2026-11-02", private_note: "PRIVATE_TOKEN" };
+  const projected = projectOwnChannelRequests({ requests: [old] });
+  assert.equal(projected?.[0].status, "dropped");
+  assert.equal(projected?.[0].private_note, undefined);
+});
+
 test("GET requires a live session and projects only own request fields", async () => {
   const guest = harness([]);
   assert.equal((await guest.route.GET(request("GET", { cookie: "" }))).status, 401);
