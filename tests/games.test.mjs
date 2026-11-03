@@ -83,6 +83,8 @@ test("Motus page is read-only, gated until launch, and uses the existing verifie
   assert.match(motusPage, /isMotusOpen\(\)/);
   assert.match(motusPage, /getVerifiedLeaderboard\("motus"\)/);
   assert.match(motusPage, /!motus/);
+  assert.match(motusPage, /Les mots inconnus ne consomment aucun essai/);
+  assert.match(motusPage, /délai de 20 secondes/);
   assert.doesNotMatch(motusPage, /api\.(post|put|patch|delete)\(/);
   assert.match(rankingPage, /motusOpen \? getVerifiedLeaderboard\("motus"\) : Promise\.resolve\(null\)/);
 });
