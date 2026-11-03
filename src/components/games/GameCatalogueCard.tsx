@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icons";
 import type { GameInfo } from "@/lib/games";
 
-export function gameStatus(game: GameInfo, quizOpen: boolean): { label: string; tone: "live" | "soon" | "planned" } {
+export function gameStatus(game: GameInfo, quizOpen: boolean, motusOpen = false): { label: string; tone: "live" | "soon" | "planned" } {
   if (!game.implemented) return { label: "En préparation", tone: "planned" };
-  return quizOpen ? { label: "Disponible dans le chat", tone: "live" } : { label: "Ouverture prochaine", tone: "soon" };
+  const available = game.id === "motus" ? motusOpen : quizOpen;
+  return available ? { label: "Disponible dans le chat", tone: "live" } : { label: "Ouverture prochaine", tone: "soon" };
 }
 
-export function GameCatalogueCard({ game, quizOpen }: { game: GameInfo; quizOpen: boolean }) {
-  const status = gameStatus(game, quizOpen);
+export function GameCatalogueCard({ game, quizOpen, motusOpen = false }: { game: GameInfo; quizOpen: boolean; motusOpen?: boolean }) {
+  const status = gameStatus(game, quizOpen, motusOpen);
   // The illustration repeats the title link for pointer users; keyboard users keep the two text links.
   const art = game.artwork && game.href ? { ...game.artwork, ...game.artwork.card } : null;
   const visual = art && game.href ? <Link href={game.href} className="game-tile-art" tabIndex={-1}><Image src={art.src} alt={art.alt}width={art.width} height={art.height} sizes="(max-width: 920px) calc(100vw - 40px), 400px" /></Link> : <span className="game-tile-mark" aria-hidden="true">{game.mark}</span>;
