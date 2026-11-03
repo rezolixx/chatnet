@@ -29,10 +29,10 @@ export async function generateMetadata(): Promise<Metadata> {
 const rules = [
   "Une personne présente dans #motus lance la manche avec !motus. Une seule manche peut être active à la fois.",
   "Le robot choisit un mot français de six lettres et dévoile sa première lettre.",
-  "Chacun propose des mots de six lettres directement dans le salon, sans commande supplémentaire.",
+  "Chacun propose des mots français de six lettres directement dans le salon, sans commande supplémentaire. Les mots inconnus ne consomment aucun essai.",
   "🟩 : lettre à la bonne place. 🟨 : lettre présente ailleurs. ⬛ : lettre absente. Les lettres répétées sont prises en compte.",
   "Six propositions différentes au maximum pour tout le salon, dont deux par joueur. Les répétitions ne comptent pas.",
-  "La manche dure 90 secondes. Le mot est révélé si personne ne le trouve à temps.",
+  "La manche dure 90 secondes. Le mot est révélé si personne ne le trouve à temps. Un délai de 20 secondes sépare deux manches.",
 ];
 
 const commands = [
@@ -98,7 +98,7 @@ export default async function MotusPage() {
             <tbody>
               <tr><th scope="row">Première réponse exacte</th><td>+10 points</td></tr>
               <tr><th scope="row">Proposition incorrecte ou temps écoulé</th><td>0 point</td></tr>
-              <tr><th scope="row">Participation à une manche terminée</th><td>+1 partie jouée</td></tr>
+              <tr><th scope="row">Au moins une proposition valide dans une manche terminée</th><td>+1 partie jouée</td></tr>
               <tr><th scope="row">Réponse exacte enregistrée</th><td>+1 victoire</td></tr>
             </tbody>
           </table>
