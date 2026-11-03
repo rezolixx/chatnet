@@ -40,8 +40,8 @@ function gameApi(routes = {}, env = { GAME_API_BASE_URL: BASE }) {
 }
 const boards = (quiz = quizBoard) => ({ "/api/leaderboards/quiz": () => json(quiz), "/api/leaderboards/motus": () => json(emptyBoard("motus")), "/api/leaderboards/defis": () => json(emptyBoard("defis")) });
 
-test("catalogue only presents the Quiz as implemented; Motus and Défis have no detail page", () => {
-  assert.deepEqual(gameCatalogue.map((game) => [game.id, game.channel, game.implemented, game.href]), [["quiz", "#quiz", true, "/jeux/quiz"], ["motus", "#motus", false, null], ["defis", "#defis", false, null]]);
+test("catalogue presents Quiz and Motus rules, but leaves Défis in preparation", () => {
+  assert.deepEqual(gameCatalogue.map((game) => [game.id, game.channel, game.implemented, game.href]), [["quiz", "#quiz", true, "/jeux/quiz"], ["motus", "#motus", true, "/jeux/motus"], ["defis", "#defis", false, null]]);
   for (const game of gameCatalogue.filter((item) => !item.implemented)) assert.match(game.description, /pas encore jouable/);
 });
 
@@ -72,6 +72,19 @@ test("Game API base is server-only configuration: unset, insecure or credentiale
   assert.equal(gameApi({}, {}).api.isQuizOpen(), false);
   assert.equal(gameApi({}, { GAMES_QUIZ_OPEN: "true" }).api.isQuizOpen(), true);
   assert.equal(gameApi({}, { GAMES_QUIZ_OPEN: "1" }).api.isQuizOpen(), false);
+  assert.equal(gameApi({}, {}).api.isMotusOpen(), false);
+  assert.equal(gameApi({}, { GAMES_MOTUS_OPEN: "true" }).api.isMotusOpen(), true);
+  assert.equal(gameApi({}, { GAMES_MOTUS_OPEN: "1" }).api.isMotusOpen(), false);
+});
+
+test("Motus page is read-only, gated until launch, and uses the existing verified leaderboard", () => {
+  const motusPage = readFileSync(new URL("../src/app/jeux/motus/page.tsx", import.meta.url), "utf8");
+  const rankingPage = readFileSync(new URL("../src/app/jeux/classement/page.tsx", import.meta.url), "utf8");
+  assert.match(motusPage, /isMotusOpen\(\)/);
+  assert.match(motusPage, /getVerifiedLeaderboard\("motus"\)/);
+  assert.match(motusPage, /!motus/);
+  assert.doesNotMatch(motusPage, /api\.(post|put|patch|delete)\(/);
+  assert.match(rankingPage, /motusOpen \? getVerifiedLeaderboard\("motus"\) : Promise\.resolve\(null\)/);
 });
 
 test("leaderboard keeps only public ranking fields, uses an anonymous cached request and the API limit", async () => {
@@ -154,16 +167,17 @@ function page(path, routes, env) {
 }
 const markup = (tree) => renderToStaticMarkup(tree);
 
-test("/jeux catalogue: honest statuses, no playable claim for Motus/Défis, unconfigured ranking state", async () => {
+test("/jeux catalogue: Quiz and Motus have gated info pages, Défis remains unimplemented", async () => {
   const mod = page("app/jeux/page.tsx", {}, {});
   const html = markup(await mod.default());
   assert.match(html, /<h1>Jouez en direct avec la communauté\.<\/h1>/);
   assert.match(html, /Ouverture prochaine/);
   assert.doesNotMatch(html, /Disponible sur IRC/);
-  assert.equal((html.match(/Pas encore jouable/g) ?? []).length, 2);
+  assert.equal((html.match(/Pas encore jouable/g) ?? []).length, 1);
   assert.match(html, /href="\/jeux\/quiz"/);
   assert.match(html, /href="\/jeux\/classement"/);
-  assert.doesNotMatch(html, /href="\/jeux\/(motus|defis)"/);
+  assert.match(html, /href="\/jeux\/motus"/);
+  assert.doesNotMatch(html, /href="\/jeux\/defis"/);
   assert.match(html, /Classements bientôt en ligne/);
   assert.doesNotMatch(html, /<table/);
   assert.equal(mod.metadata.alternates.canonical, "https://chatnet.fr/jeux");
@@ -176,7 +190,7 @@ test("/jeux shows the real top five when the Game API answers and the open statu
   assert.equal((html.match(/<tr class|<tr>/g) ?? []).length, 6);
   assert.match(html, /href="\/jeux\/joueurs\/Joueur5"/);
   assert.doesNotMatch(html, /Joueur6/);
-  assert.match(html, /Disponible sur IRC/);
+  assert.match(html, /Disponible dans le chat/);
   const empty = markup(await page("app/jeux/page.tsx", { "/api/leaderboards/quiz": () => json(emptyBoard("quiz")) }).default());
   assert.match(empty, /Aucun score pour le moment/);
   const down = markup(await page("app/jeux/page.tsx", { "/api/leaderboards/quiz": () => json({}, 503) }).default());
@@ -296,21 +310,23 @@ test("QuizBot artwork is the official optimized WebP shipped in public/games", (
   assert.ok(card.length < 80 * 1024, "card crop stays a light web asset");
 });
 
-test("/jeux: the Quiz card opens on a full-width QuizBot banner instead of the ? mark; Motus and Défis are unchanged", async () => {
+test("/jeux: QuizBot banner is preserved; Motus has a gated info link while Défis remains planned", async () => {
   const html = markup(await page("app/jeux/page.tsx", {}, { GAMES_QUIZ_OPEN: "true" }).default());
   const card = (id) => html.match(new RegExp(`<article class="game-tile game-tile-${id}[^"]*">.*?</article>`))[0];
   const quiz = card("quiz");
   assert.match(quiz, /^<article class="game-tile game-tile-quiz"><div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/quiz"><img alt="QuizBot, le robot du Quiz Chatnet" loading="lazy" width="1792" height="660"[^>]* sizes="\(max-width: 920px\) calc\(100vw - 40px\), 400px" srcSet="\/_next\/image\?url=%2Fgames%2Fquizbot-card\.webp&amp;w=/);
-  assert.match(quiz, /<\/a><span class="game-status game-status-live">Disponible sur IRC<\/span><\/div>/);
+  assert.match(quiz, /<\/a><span class="game-status game-status-live">Disponible dans le chat<\/span><\/div>/);
   assert.doesNotMatch(quiz, /game-tile-mark|>\?</);
   // Card text order is unchanged under the banner.
   assert.match(quiz, /<\/div><span class="game-kind">Culture générale<\/span><h3>/);
   // Title and "Découvrir" links stay the keyboard path to the Quiz page.
   assert.match(quiz, /<h3><a href="\/jeux\/quiz">Quiz<\/a><\/h3>/);
   assert.match(quiz, /aria-label="Découvrir le jeu Quiz" href="\/jeux\/quiz"/);
-  assert.match(card("motus"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">Aa<\/span><span class="game-status game-status-planned">En préparation<\/span><\/div>/);
+  assert.match(card("motus"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">Aa<\/span><span class="game-status game-status-soon">Ouverture prochaine<\/span><\/div>/);
   assert.match(card("defis"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">↗<\/span><span class="game-status game-status-planned">En préparation<\/span><\/div>/);
-  for (const id of ["motus", "defis"]) assert.doesNotMatch(card(id), /<img|<a /);
+  assert.match(card("motus"), /href="\/jeux\/motus"/);
+  assert.doesNotMatch(card("motus"), /<img/);
+  assert.doesNotMatch(card("defis"), /<img|<a /);
 });
 
 test("/jeux/quiz: QuizBot sits beside the unchanged hero copy and is preloaded at a responsive size", async () => {
