@@ -85,6 +85,7 @@ test("Motus page is read-only, gated until launch, and uses the existing verifie
   assert.match(motusPage, /!motus/);
   assert.match(motusPage, /Les mots inconnus ne consomment aucun essai/);
   assert.match(motusPage, /délai de 20 secondes/);
+  assert.match(motusPage, /ChatJoinForm selectedRoom="motus"/);
   assert.doesNotMatch(motusPage, /api\.(post|put|patch|delete)\(/);
   assert.match(rankingPage, /motusOpen \? getVerifiedLeaderboard\("motus"\) : Promise\.resolve\(null\)/);
 });
@@ -304,7 +305,7 @@ test("QuizBot artwork is the official optimized WebP shipped in public/games", (
   assert.equal(file.toString("ascii", 12, 16), "VP8X");
   assert.deepEqual([1 + file.readUIntLE(24, 3), 1 + file.readUIntLE(27, 3)], [quiz.artwork.width, quiz.artwork.height]);
   assert.ok(file.length < 150 * 1024, "artwork stays a light web asset");
-  assert.deepEqual(gameCatalogue.filter((game) => game.artwork).map((game) => game.id), ["quiz"]);
+  assert.deepEqual(gameCatalogue.filter((game) => game.artwork).map((game) => game.id), ["quiz", "motus"]);
   // The card banner is a lossy crop of the same artwork (simple VP8), not a different image.
   const card = readFileSync(new URL("../public/games/quizbot-card.webp", import.meta.url));
   assert.equal(card.toString("ascii", 8, 16), "WEBPVP8 ");
@@ -312,8 +313,23 @@ test("QuizBot artwork is the official optimized WebP shipped in public/games", (
   assert.ok(card.length < 80 * 1024, "card crop stays a light web asset");
 });
 
-test("/jeux: QuizBot banner is preserved; Motus has a gated info link while Défis remains planned", async () => {
-  const html = markup(await page("app/jeux/page.tsx", {}, { GAMES_QUIZ_OPEN: "true" }).default());
+test("MotusBot illustration ships as optimized full-size and cropped WebP assets", () => {
+  const motus = gameCatalogue.find((game) => game.id === "motus");
+  assert.deepEqual(motus.artwork, { src: "/games/motusbot.webp", width: 1672, height: 941, alt: "MotusBot présente un plateau de lettres colorées", card: { src: "/games/motusbot-card.webp", width: 1672, height: 618 } });
+  for (const [filePath, width, height, limit] of [
+    ["motusbot.webp", 1672, 941, 120 * 1024],
+    ["motusbot-card.webp", 1672, 618, 80 * 1024],
+  ]) {
+    const file = readFileSync(new URL(`../public/games/${filePath}`, import.meta.url));
+    assert.equal(file.toString("ascii", 0, 4), "RIFF");
+    assert.equal(file.toString("ascii", 8, 16), "WEBPVP8 ");
+    assert.deepEqual([file.readUInt16LE(26) & 0x3fff, file.readUInt16LE(28) & 0x3fff], [width, height]);
+    assert.ok(file.length < limit, `${filePath} stays a light web asset`);
+  }
+});
+
+test("/jeux: QuizBot and live MotusBot have illustrated banners; Défis remains planned", async () => {
+  const html = markup(await page("app/jeux/page.tsx", {}, { GAMES_QUIZ_OPEN: "true", GAMES_MOTUS_OPEN: "true" }).default());
   const card = (id) => html.match(new RegExp(`<article class="game-tile game-tile-${id}[^"]*">.*?</article>`))[0];
   const quiz = card("quiz");
   assert.match(quiz, /^<article class="game-tile game-tile-quiz"><div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/quiz"><img alt="QuizBot, le robot du Quiz Chatnet" loading="lazy" width="1792" height="660"[^>]* sizes="\(max-width: 920px\) calc\(100vw - 40px\), 400px" srcSet="\/_next\/image\?url=%2Fgames%2Fquizbot-card\.webp&amp;w=/);
@@ -324,11 +340,19 @@ test("/jeux: QuizBot banner is preserved; Motus has a gated info link while Déf
   // Title and "Découvrir" links stay the keyboard path to the Quiz page.
   assert.match(quiz, /<h3><a href="\/jeux\/quiz">Quiz<\/a><\/h3>/);
   assert.match(quiz, /aria-label="Découvrir le jeu Quiz" href="\/jeux\/quiz"/);
-  assert.match(card("motus"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">Aa<\/span><span class="game-status game-status-soon">Ouverture prochaine<\/span><\/div>/);
+  assert.match(card("motus"), /<div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/motus"><img alt="MotusBot présente un plateau de lettres colorées" loading="lazy" width="1672" height="618"[^>]*srcSet="\/_next\/image\?url=%2Fgames%2Fmotusbot-card\.webp/);
+  assert.match(card("motus"), /<span class="game-status game-status-live">Disponible dans le chat<\/span><\/div>/);
   assert.match(card("defis"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">↗<\/span><span class="game-status game-status-planned">En préparation<\/span><\/div>/);
   assert.match(card("motus"), /href="\/jeux\/motus"/);
-  assert.doesNotMatch(card("motus"), /<img/);
+  assert.doesNotMatch(card("motus"), /game-tile-mark/);
   assert.doesNotMatch(card("defis"), /<img|<a /);
+});
+
+test("/jeux/motus: MotusBot illustration appears beside the rules and the unopened version remains gated", async () => {
+  const html = markup(await page("app/jeux/motus/page.tsx", {}, {}).default());
+  assert.match(html, /<div class="games-hero-inner quiz-hero"><div class="games-hero-copy"><span class="game-status game-status-soon">Ouverture prochaine<\/span><h1>Le Motus Chatnet<\/h1>/);
+  assert.match(html, /<figure class="quiz-hero-art"><img alt="MotusBot présente un plateau de lettres colorées" width="1672" height="941"[^>]*srcSet="\/_next\/image\?url=%2Fgames%2Fmotusbot\.webp/);
+  assert.match(html, /Motus arrive bientôt/);
 });
 
 test("/jeux/quiz: QuizBot sits beside the unchanged hero copy and is preloaded at a responsive size", async () => {
