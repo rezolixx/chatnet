@@ -32,6 +32,11 @@ export function isQuizOpen(): boolean {
   return process.env.GAMES_QUIZ_OPEN?.trim().toLowerCase() === "true";
 }
 
+/** Publishing switch: the Motus page is visible before the bot is opened, but never claims an active room. */
+export function isMotusOpen(): boolean {
+  return process.env.GAMES_MOTUS_OPEN?.trim().toLowerCase() === "true";
+}
+
 class GameApiError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
