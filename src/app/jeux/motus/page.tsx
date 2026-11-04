@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import { ChatJoinForm } from "@/components/chat/ChatJoinForm";
 import { gameStatus } from "@/components/games/GameCatalogueCard";
 import { GameDataNotice } from "@/components/games/GameDataNotice";
 import { GamesBreadcrumb } from "@/components/games/GamesBreadcrumb";
@@ -44,15 +46,16 @@ const commands = [
 ];
 
 export default async function MotusPage() {
+  const motus = getGameInfo("motus");
   const motusOpen = isMotusOpen();
-  const status = gameStatus(getGameInfo("motus"), false, motusOpen);
+  const status = gameStatus(motus, false, motusOpen);
   const leaderboard = motusOpen ? await getVerifiedLeaderboard("motus") : null;
 
   return <>
     <section className="games-hero games-hero-compact">
       <div className="container">
         <GamesBreadcrumb items={[{ label: "Jeux", href: "/jeux" }, { label: "Motus", href: "/jeux/motus" }]} />
-        <div className="games-hero-copy">
+        <div className="games-hero-inner quiz-hero"><div className="games-hero-copy">
           <span className={`game-status game-status-${status.tone}`}>{status.label}</span>
           <h1>Le Motus Chatnet</h1>
           <p>Un mot à deviner ensemble dans #motus, des indices colorés à chaque proposition et des points pour la première bonne réponse.</p>
@@ -60,7 +63,7 @@ export default async function MotusPage() {
             <a className="button button-primary button-large" href="#participer">Comment participer <Icon name="arrow" size={17} /></a>
             <Link href="/jeux/classement" className="button button-ghost button-large">Voir les classements</Link>
           </div>
-        </div>
+        </div>{motus.artwork && <figure className="quiz-hero-art"><Image src={motus.artwork.src} alt={motus.artwork.alt} width={motus.artwork.width} height={motus.artwork.height} sizes="(max-width: 700px) min(340px, calc(100vw - 40px)), 420px" preload /></figure>}</div>
       </div>
     </section>
 
@@ -74,12 +77,10 @@ export default async function MotusPage() {
             <li><span className="games-step-number" aria-hidden="true">3</span><h3>Proposez des mots</h3><p>Écrivez votre proposition. Les indices affichent les lettres bien placées et celles à déplacer.</p></li>
           </ol>
         </div>
-        <aside className="quiz-access" aria-labelledby="motus-access-title">
-          <h2 id="motus-access-title">{motusOpen ? "Rejoindre #motus" : "Motus arrive bientôt"}</h2>
-          <p>{motusOpen
-            ? "Les manches se jouent dans le salon #motus. Ouvrez le chat pour retrouver les autres joueurs."
-            : "Le moteur est en préparation et les parties ne sont pas encore ouvertes au public. Revenez bientôt pour participer."}</p>
-          <Link href={joinHref} className="button button-primary">Rejoindre le chat <Icon name="arrow" size={16} /></Link>
+        <aside className="quiz-access" aria-label="Accès au salon Motus">
+          {motusOpen
+            ? <ChatJoinForm selectedRoom="motus" />
+            : <><h2>Motus arrive bientôt</h2><p>Le moteur est en préparation et les parties ne sont pas encore ouvertes au public. Revenez bientôt pour participer.</p><Link href={joinHref} className="button button-primary">Rejoindre le chat <Icon name="arrow" size={16} /></Link></>}
         </aside>
       </div>
     </section>
