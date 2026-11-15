@@ -1,0 +1,30 @@
+name: channel request proxy
+
+# Validate exact 409 error mapping without affecting other frontend suites.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/components/rooms/ChannelRequestForm.tsx"
+      - "src/lib/channels/requests.server.ts"
+      - "tests/channel-requests.test.mjs"
+      - ".github/workflows/channel-requests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  channel-request-proxy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript validation
+        run: npm run typecheck
+      - name: Channel request proxy tests
+        run: node --test tests/channel-requests.test.mjs
