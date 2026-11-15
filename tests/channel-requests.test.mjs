@@ -171,6 +171,15 @@ test("upstream conflicts, validation and unexpected acknowledgements are sanitiz
   const reservedResponse = await reserved.route.POST(request("POST"));
   assert.equal(reservedResponse.status, 409);
   assert.equal((await payload(reservedResponse)).code, "NAME_RESERVED");
+
+  const coded = harness([json({ nickname: "Member" }), csrf(), json({ code: "RESERVED_CHANNEL", message: "Ce nom de salon est reserve." }, 409)]);
+  assert.equal((await payload(await coded.route.POST(request("POST")))).code, "NAME_RESERVED");
+  const official = harness([json({ nickname: "Member" }), csrf(), json({ code: "OFFICIAL_CHANNEL", message: "Ce nom est reserve a un salon officiel Discut." }, 409)]);
+  const officialResponse = await official.route.POST(request("POST"));
+  assert.equal(officialResponse.status, 409);
+  const officialBody = await payload(officialResponse);
+  assert.equal(officialBody.code, "NAME_OFFICIAL");
+  assert.equal(officialBody.message, "Ce nom est réservé à un salon officiel. Choisissez un autre nom.");
   const throttled = harness([json({ nickname: "Member" }), csrf(), json({ message: "PRIVATE_TOKEN" }, 429, { "Retry-After": "42" })]);
   const throttledResponse = await throttled.route.POST(request("POST"));
   assert.equal(throttledResponse.status, 429);

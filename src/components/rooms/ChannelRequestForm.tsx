@@ -98,6 +98,7 @@ export function ChannelRequestForm() {
           404: "Cette demande n'est plus modifiable.",
           409: body.code === "ACTIVE_REQUEST_LIMIT" ? "Vous avez déjà deux demandes de salons en cours."
             : body.code === "NAME_RESERVED" ? "Ce nom de salon est réservé. Choisissez un autre nom."
+            : body.code === "NAME_OFFICIAL" ? "Ce nom est réservé à un salon officiel. Choisissez un autre nom."
             : "Ce salon existe déjà, ou la demande n'est plus modifiable.",
           429: body.code === "RATE_LIMITED" && typeof body.message === "string" && body.message.length <= 160
             ? body.message : "Trop de tentatives. Réessayez dans quelques instants.",

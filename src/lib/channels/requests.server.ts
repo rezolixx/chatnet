@@ -105,8 +105,11 @@ export async function handleChannelRequests(request: NextRequest, method: Reques
       if (conflict.code === "ACTIVE_REQUEST_LIMIT") {
         return withBridge(error(409, "ACTIVE_REQUEST_LIMIT", "Vous avez déjà deux demandes de salons en cours."), cookies, current);
       }
-      if (conflict.message === "Ce nom de salon est reserve.") {
+      if (conflict.code === "RESERVED_CHANNEL" || conflict.message === "Ce nom de salon est reserve.") {
         return withBridge(error(409, "NAME_RESERVED", "Ce nom de salon est réservé. Choisissez un autre nom."), cookies, current);
+      }
+      if (conflict.code === "OFFICIAL_CHANNEL") {
+        return withBridge(error(409, "NAME_OFFICIAL", "Ce nom est réservé à un salon officiel. Choisissez un autre nom."), cookies, current);
       }
       return withBridge(error(409, "CONFLICT", "Le nom est déjà pris, ou cette demande ne peut plus être modifiée."), cookies, current);
     }
