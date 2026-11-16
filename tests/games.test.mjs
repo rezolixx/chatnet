@@ -40,8 +40,8 @@ function gameApi(routes = {}, env = { GAME_API_BASE_URL: BASE }) {
 }
 const boards = (quiz = quizBoard) => ({ "/api/leaderboards/quiz": () => json(quiz), "/api/leaderboards/motus": () => json(emptyBoard("motus")), "/api/leaderboards/defis": () => json(emptyBoard("defis")) });
 
-test("catalogue presents Quiz and Motus rules, but leaves Défis in preparation", () => {
-  assert.deepEqual(gameCatalogue.map((game) => [game.id, game.channel, game.implemented, game.href]), [["quiz", "#quiz", true, "/jeux/quiz"], ["motus", "#motus", true, "/jeux/motus"], ["defis", "#defis", false, null]]);
+test("catalogue presents Quiz, Motus and Défis du jour, each with its own page", () => {
+  assert.deepEqual(gameCatalogue.map((game) => [game.id, game.channel, game.implemented, game.href]), [["quiz", "#quiz", true, "/jeux/quiz"], ["motus", "#motus", true, "/jeux/motus"], ["defis", "#defis", true, "/jeux/defis"]]);
   for (const game of gameCatalogue.filter((item) => !item.implemented)) assert.match(game.description, /pas encore jouable/);
 });
 
@@ -170,17 +170,18 @@ function page(path, routes, env) {
 }
 const markup = (tree) => renderToStaticMarkup(tree);
 
-test("/jeux catalogue: Quiz and Motus have gated info pages, Défis remains unimplemented", async () => {
+test("/jeux catalogue: Quiz, Motus and Défis have gated info pages", async () => {
   const mod = page("app/jeux/page.tsx", {}, {});
   const html = markup(await mod.default());
   assert.match(html, /<h1>Jouez en direct avec la communauté\.<\/h1>/);
   assert.match(html, /Ouverture prochaine/);
   assert.doesNotMatch(html, /Disponible sur IRC/);
-  assert.equal((html.match(/Pas encore jouable/g) ?? []).length, 1);
+  assert.equal((html.match(/Pas encore jouable/g) ?? []).length, 0);
   assert.match(html, /href="\/jeux\/quiz"/);
   assert.match(html, /href="\/jeux\/classement"/);
   assert.match(html, /href="\/jeux\/motus"/);
-  assert.doesNotMatch(html, /href="\/jeux\/defis"/);
+  assert.match(html, /href="\/jeux\/defis"/);
+  assert.doesNotMatch(html, /Disponible dans le chat/, "never online without a verified bot");
   assert.match(html, /Classements bientôt en ligne/);
   assert.doesNotMatch(html, /<table/);
   assert.equal(mod.metadata.alternates.canonical, "https://chatnet.fr/jeux");
@@ -305,7 +306,7 @@ test("QuizBot artwork is the official optimized WebP shipped in public/games", (
   assert.equal(file.toString("ascii", 12, 16), "VP8X");
   assert.deepEqual([1 + file.readUIntLE(24, 3), 1 + file.readUIntLE(27, 3)], [quiz.artwork.width, quiz.artwork.height]);
   assert.ok(file.length < 150 * 1024, "artwork stays a light web asset");
-  assert.deepEqual(gameCatalogue.filter((game) => game.artwork).map((game) => game.id), ["quiz", "motus"]);
+  assert.deepEqual(gameCatalogue.filter((game) => game.artwork).map((game) => game.id), ["quiz", "motus", "defis"]);
   // The card banner is a lossy crop of the same artwork (simple VP8), not a different image.
   const card = readFileSync(new URL("../public/games/quizbot-card.webp", import.meta.url));
   assert.equal(card.toString("ascii", 8, 16), "WEBPVP8 ");
@@ -328,7 +329,7 @@ test("MotusBot illustration ships as optimized full-size and cropped WebP assets
   }
 });
 
-test("/jeux: QuizBot and live MotusBot have illustrated banners; Défis remains planned", async () => {
+test("/jeux: QuizBot, live MotusBot and DefisBot have illustrated banners; Défis is not claimed online", async () => {
   const html = markup(await page("app/jeux/page.tsx", {}, { GAMES_QUIZ_OPEN: "true", GAMES_MOTUS_OPEN: "true" }).default());
   const card = (id) => html.match(new RegExp(`<article class="game-tile game-tile-${id}[^"]*">.*?</article>`))[0];
   const quiz = card("quiz");
@@ -342,10 +343,11 @@ test("/jeux: QuizBot and live MotusBot have illustrated banners; Défis remains 
   assert.match(quiz, /aria-label="Découvrir le jeu Quiz" href="\/jeux\/quiz"/);
   assert.match(card("motus"), /<div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/motus"><img alt="MotusBot, robot bleu souriant tenant une enseigne MOTUS lumineuse" loading="lazy" width="1672" height="770"[^>]*srcSet="\/_next\/image\?url=%2Fgames%2Fmotusbot-card-v2\.webp/);
   assert.match(card("motus"), /<span class="game-status game-status-live">Disponible dans le chat<\/span><\/div>/);
-  assert.match(card("defis"), /<div class="game-tile-top"><span class="game-tile-mark" aria-hidden="true">↗<\/span><span class="game-status game-status-planned">En préparation<\/span><\/div>/);
+  assert.match(card("defis"), /<div class="game-tile-top game-tile-top-art"><a class="game-tile-art" tabindex="-1" href="\/jeux\/defis"><img alt="DefisBot, robot blanc et bleu souriant qui brandit un trophée doré"[^>]*srcSet="\/_next\/image\?url=%2Fgames%2Fdefisbot-card\.webp/);
+  assert.match(card("defis"), /<span class="game-status game-status-soon">Ouverture prochaine<\/span><\/div>/);
   assert.match(card("motus"), /href="\/jeux\/motus"/);
   assert.doesNotMatch(card("motus"), /game-tile-mark/);
-  assert.doesNotMatch(card("defis"), /<img|<a /);
+  assert.doesNotMatch(card("defis"), /game-tile-mark|Pas encore jouable/);
 });
 
 test("/jeux/motus: MotusBot illustration appears beside the rules and the unopened version remains gated", async () => {
@@ -374,4 +376,102 @@ test("QuizBot styles: full-bleed card banner under the badge, cropped hero art t
   assert.match(css, /\.quiz-hero-art \{ justify-self: end; width: 100%; max-width: 420px;/);
   assert.match(css, /@media \(max-width: 920px\) \{[^\n]*\.games-hero-inner \{ gap: 34px; \}\.quiz-hero-art \{ justify-self: start; \}/);
   assert.match(css, /@media \(max-width: 700px\) \{[^\n]*\.quiz-hero-art \{ max-width: 340px;/);
+});
+
+
+// ---------------------------------------------------------------- Défis du jour (DefisBot)
+
+// ChatJoinForm needs the member AuthProvider: replace it by a marker in the page tree
+// (it sits directly in the page's own JSX), keeping everything else rendered for real.
+function withoutJoinForm(tree, joinForm) {
+  if (Array.isArray(tree)) return tree.map((child) => withoutJoinForm(child, joinForm));
+  if (!React.isValidElement(tree)) return tree;
+  if (tree.type === joinForm) return React.createElement("div", { "data-join-room": tree.props.selectedRoom });
+  if (tree.props?.children === undefined) return tree;
+  return React.cloneElement(tree, undefined, ...[].concat(withoutJoinForm(tree.props.children, joinForm)));
+}
+
+const defisStatus = (status, extra = {}) => ({ game: "defis", nickname: "DefisBot", channel: "#defis", available: status === "available", status, nextOpensAt: "2026-11-21T07:00:00.000Z", checkedAt: "2026-11-20T10:00:00.000Z", ...extra });
+const defisBoard = (period, entries = []) => ({ game: "defis", period, timeZone: "Africa/Tunis", from: null, to: null, limit: 10, entries });
+const defisRoutes = (status = defisStatus("available"), current = { game: "defis", challenge: null, nextOpensAt: null }, boards = {}) => ({
+  "/api/defis/status": () => (status instanceof Response ? status : json(status)),
+  "/api/defis/current": () => json(current),
+  "/api/defis/leaderboards/": (pathname) => { const period = pathname.split("/").pop(); return json(boards[period] ?? defisBoard(period)); },
+});
+
+test("DefisBot artwork ships as optimized WebP crops of the supplied illustration", () => {
+  const defis = gameCatalogue.find((game) => game.id === "defis");
+  assert.deepEqual(defis.artwork, { src: "/games/defisbot.webp", width: 1200, height: 1200, alt: "DefisBot, robot blanc et bleu souriant qui brandit un trophée doré", card: { src: "/games/defisbot-card.webp", width: 1600, height: 740 } });
+  for (const [filePath, width, height, limit] of [["defisbot.webp", 1200, 1200, 120 * 1024], ["defisbot-card.webp", 1600, 740, 100 * 1024]]) {
+    const file = readFileSync(new URL(`../public/games/${filePath}`, import.meta.url));
+    assert.equal(file.toString("ascii", 8, 16), "WEBPVP8 ");
+    assert.deepEqual([file.readUInt16LE(26) & 0x3fff, file.readUInt16LE(28) & 0x3fff], [width, height]);
+    assert.ok(file.length < limit, `${filePath} stays a light web asset`);
+  }
+});
+
+test("Défis availability is only ever what the Game API verified", async () => {
+  const cases = [
+    [defisStatus("available"), { status: "known", availability: "available" }, "Disponible dans le chat", "live"],
+    [defisStatus("paused"), { status: "known", availability: "paused" }, "En pause", "soon"],
+    [defisStatus("degraded"), { status: "known", availability: "degraded" }, "Momentanément indisponible", "planned"],
+    [defisStatus("offline"), { status: "known", availability: "offline" }, "Momentanément indisponible", "planned"],
+    [defisStatus("offline", { available: true }), { status: "unavailable" }, "Momentanément indisponible", "planned"],
+    [{ ...defisStatus("available"), game: "quiz" }, { status: "unavailable" }, "Momentanément indisponible", "planned"],
+    [json({ error: "x" }, 503), { status: "unavailable" }, "Momentanément indisponible", "planned"],
+  ];
+  for (const [answer, expected, label, tone] of cases) {
+    const { modules } = gameApi(defisRoutes(answer));
+    const api = modules.load("lib/api/defis.server.ts");
+    const result = await api.getDefisStatus();
+    assert.equal(result.status, expected.status);
+    if (expected.availability) assert.equal(result.availability, expected.availability);
+    assert.deepEqual(plain(api.defisGameStatus(result)), { label, tone });
+  }
+  const { modules } = gameApi({}, {});
+  const api = modules.load("lib/api/defis.server.ts");
+  assert.deepEqual(plain(api.defisGameStatus(await api.getDefisStatus())), { label: "Ouverture prochaine", tone: "soon" });
+});
+
+test("/jeux/defis: verified status, announced challenge without answers, three rankings and a #defis join form", async () => {
+  const current = { game: "defis", nextOpensAt: null, challenge: { kind: "enigme", kindLabel: "Énigme", difficulty: "moyen", title: "Le miroir", prompt: "Plus on m’en retire, plus je deviens grand. Qui suis-je ?", opensAt: "2026-11-20T07:00:00.000Z", closesAt: "2026-11-20T19:30:00.000Z", solves: 2, answers: ["zxqleakedanswer"], hints: ["zxqleakedhint"] } };
+  const boards = { day: defisBoard("day", [{ rank: 1, nickname: "Lea", points: 25, solves: 1 }, { rank: 2, nickname: "Rezo", points: 23, solves: 1 }]), month: defisBoard("month", [{ rank: 1, nickname: "Lea", points: 80, solves: 4 }]) };
+  const { modules } = gameApi(defisRoutes(defisStatus("available"), current, boards), { GAME_API_BASE_URL: BASE });
+  const mod = modules.load("app/jeux/defis/page.tsx");
+  const html = markup(withoutJoinForm(await mod.default(), modules.load("components/chat/ChatJoinForm.tsx").ChatJoinForm));
+  assert.match(html, /<div data-join-room="defis"><\/div>/);
+  assert.match(html, /<h1>Les Défis du jour<\/h1>/);
+  assert.match(html, /<span class="game-status game-status-live" role="status">Disponible dans le chat<\/span>/);
+  assert.match(html, /Plus on m’en retire, plus je deviens grand\. Qui suis-je \?/);
+  assert.match(html, /Ouvert jusqu’à 20h30 \(heure de Tunis\)/);
+  assert.match(html, /2 joueurs l’ont déjà résolu/);
+  assert.doesNotMatch(html, /zxqleaked/, "no answer or hint ever reaches the page, even if the API leaked one");
+  assert.match(html, /Répondre au défi/);
+  assert.match(html, /NickServ/);
+  assert.doesNotMatch(html, /\/msg/i, "no slash command is ever suggested");
+  assert.match(html, /Classement des Défis du jour — aujourd’hui/);
+  assert.match(html, /Classement des Défis du jour — ce mois-ci/);
+  assert.match(html, /Le classement se remplira avec les premiers défis relevés/);
+  assert.match(html, /href="\/jeux\/joueurs\/Lea"/);
+  assert.match(html, /salon #defis|#defis/);
+  assert.match(html, /defisbot\.webp/);
+  assert.equal(mod.metadata.alternates.canonical, "https://chatnet.fr/jeux/defis");
+  assert.equal(mod.revalidate, 30);
+  const source = readFileSync(new URL("../src/app/jeux/defis/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /<ChatJoinForm selectedRoom="defis" \/>/);
+});
+
+test("/jeux/defis when DefisBot is offline or the Game API is down: never online, next opening only from a live bot", async () => {
+  const render = async (routes) => {
+    const { modules } = gameApi(routes, { GAME_API_BASE_URL: BASE });
+    return markup(withoutJoinForm(await modules.load("app/jeux/defis/page.tsx").default(), modules.load("components/chat/ChatJoinForm.tsx").ChatJoinForm));
+  };
+  const html = await render(defisRoutes(defisStatus("offline", { nextOpensAt: null })));
+  assert.doesNotMatch(html, /Disponible dans le chat/);
+  assert.match(html, /Momentanément indisponible/);
+  assert.match(html, /DefisBot n’est pas disponible pour le moment/);
+  const downHtml = await render({ "/api/defis/": () => json({}, 500) });
+  assert.doesNotMatch(downHtml, /Disponible dans le chat/);
+  assert.match(downHtml, /ne peut pas être vérifié/);
+  assert.match(downHtml, /Classement momentanément indisponible/);
 });
