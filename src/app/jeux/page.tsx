@@ -7,26 +7,29 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Icon } from "@/components/ui/Icons";
 import { getVerifiedLeaderboard } from "@/lib/api/game-identities.server";
 import { isMotusOpen, isQuizOpen } from "@/lib/api/games.server";
+import { defisGameStatus, getDefisStatus } from "@/lib/api/defis.server";
+import { gameStatus } from "@/components/games/GameCatalogueCard";
 import { gameCatalogue } from "@/lib/games";
 import { pageMetadata } from "@/lib/metadata";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = pageMetadata("Jeux en ligne entre membres", "Quiz de culture générale en direct dans le salon #quiz, classement des joueurs et prochains jeux Chatnet : Motus et Défis du jour.", "/jeux");
+export const metadata: Metadata = pageMetadata("Jeux en ligne entre membres", "Quiz de culture générale dans #quiz, Motus dans #motus et Défis du jour dans #defis : jeux en direct entre membres et classements des joueurs.", "/jeux");
 
 const steps = [
   { title: "Ouvrez le chat", text: "Ouvrez Chatnet, rejoignez un salon de jeu et retrouvez toute la communauté." },
-  { title: "Rejoignez le salon du jeu", text: "Chaque jeu a son salon dédié : le Quiz dans #quiz et Motus dans #motus, selon leur disponibilité." },
+  { title: "Rejoignez le salon du jeu", text: "Chaque jeu a son salon dédié : le Quiz dans #quiz, Motus dans #motus et les Défis du jour dans #defis, selon leur disponibilité." },
   { title: "Marquez des points", text: "Vos points, parties et victoires sont enregistrés par le robot du jeu et publiés dans le classement du site." },
 ];
 
 export default async function GamesPage() {
   const quizOpen = isQuizOpen();
   const motusOpen = isMotusOpen();
+  const defisStatus = defisGameStatus(await getDefisStatus());
   const leaderboard = await getVerifiedLeaderboard("quiz");
   return <>
-    <section className="games-hero"><div className="container games-hero-inner"><div className="games-hero-copy"><span className="eyebrow">Les jeux Chatnet</span><h1>Jouez en direct avec la communauté.</h1><p>Des parties rapides dans les salons de discussion, des points pour chaque bonne réponse et un classement commun. Les jeux Chatnet se jouent directement dans les salons de discussion.</p><div className="games-hero-actions"><Link href="/jeux/quiz" className="button button-primary button-large">Découvrir le Quiz <Icon name="arrow" size={17} /></Link><Link href="/jeux/classement" className="button button-ghost button-large">Voir le classement</Link></div></div><ul className="games-hero-channels" aria-label="Salons de jeu">{gameCatalogue.map((game) => <li key={game.id} className={game.implemented ? "is-ready" : undefined}><span className="games-hero-channel">{game.channel}</span><span>{game.name}</span><small>{game.implemented ? ((game.id === "motus" ? motusOpen : quizOpen) ? "Disponible" : "Ouverture prochaine") : "En préparation"}</small></li>)}</ul></div></section>
-    <section className="section games-catalogue-section"><div className="container"><SectionHeading eyebrow="Catalogue" title="Choisissez votre jeu." description="Quiz et Motus disposent chacun d'un salon et d'un classement. Consultez la disponibilité de chaque jeu avant de rejoindre une partie." /><div className="game-tile-grid">{gameCatalogue.map((game) => <GameCatalogueCard key={game.id} game={game} quizOpen={quizOpen} motusOpen={motusOpen} />)}</div></div></section>
+    <section className="games-hero"><div className="container games-hero-inner"><div className="games-hero-copy"><span className="eyebrow">Les jeux Chatnet</span><h1>Jouez en direct avec la communauté.</h1><p>Des parties rapides dans les salons de discussion, des points pour chaque bonne réponse et un classement commun. Les jeux Chatnet se jouent directement dans les salons de discussion.</p><div className="games-hero-actions"><Link href="/jeux/quiz" className="button button-primary button-large">Découvrir le Quiz <Icon name="arrow" size={17} /></Link><Link href="/jeux/classement" className="button button-ghost button-large">Voir le classement</Link></div></div><ul className="games-hero-channels" aria-label="Salons de jeu">{gameCatalogue.map((game) => <li key={game.id} className={game.implemented ? "is-ready" : undefined}><span className="games-hero-channel">{game.channel}</span><span>{game.name}</span><small>{(() => { const status = gameStatus(game, quizOpen, motusOpen, defisStatus); return status.tone === "live" ? "Disponible" : status.label; })()}</small></li>)}</ul></div></section>
+    <section className="section games-catalogue-section"><div className="container"><SectionHeading eyebrow="Catalogue" title="Choisissez votre jeu." description="Quiz, Motus et Défis du jour disposent chacun d'un salon et d'un classement. Consultez la disponibilité de chaque jeu avant de rejoindre une partie." /><div className="game-tile-grid">{gameCatalogue.map((game) => <GameCatalogueCard key={game.id} game={game} quizOpen={quizOpen} motusOpen={motusOpen} defisStatus={defisStatus} />)}</div></div></section>
     <section className="section games-how-section"><div className="container"><SectionHeading eyebrow="Jeux en direct" title="Un réseau, des parties partagées." description="Les jeux Chatnet sont disponibles dans nos salons de discussion. Rejoignez-les depuis le site pour participer aux mêmes parties, avec les mêmes règles et le même classement." /><ol className="games-steps">{steps.map((step, index) => <li key={step.title}><span className="games-step-number" aria-hidden="true">{index + 1}</span><h3>{step.title}</h3><p>{step.text}</p></li>)}</ol><p className="games-how-note"><Icon name="shield" size={18} /> Le site affiche les scores en lecture seule : les parties se jouent pour l’instant dans les salons du chat.</p></div></section>
     <section className="section games-ranking-section"><div className="container"><SectionHeading eyebrow="Classement" title="Les meilleurs joueurs du Quiz." action={<Link href="/jeux/classement" className="text-link">Classement complet <Icon name="arrow" size={17} /></Link>} />{leaderboard.status === "available" ? leaderboard.entries.length ? <LeaderboardTable entries={leaderboard.entries.slice(0, 5)} caption="Cinq premiers joueurs du Quiz" /> : <GameDataNotice kind="empty" /> : <GameDataNotice kind={leaderboard.status} />}</div></section>
   </>;

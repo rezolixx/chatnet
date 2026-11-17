@@ -13,7 +13,7 @@ export const games: GamePreview[] = [
 ];
 
 // Game System B3: identifiers, names and channels mirror game-system
-// packages/shared/src/games.ts. Only the Quiz has a game engine today.
+// packages/shared/src/games.ts.
 export const GAME_IDS = ["quiz", "motus", "defis"] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
@@ -44,7 +44,7 @@ export interface GameArtwork {
 export const gameCatalogue: readonly GameInfo[] = [
   { id: "quiz", name: "Quiz", channel: "#quiz", kind: "Culture générale", mark: "?", tagline: "Questions en direct, première bonne réponse gagnante.", description: "Histoire, géographie, sciences, cinéma, musique, sport : répondez le plus vite possible dans le salon #quiz et marquez des points pour le classement.", href: "/jeux/quiz", implemented: true, artwork: { src: "/games/quizbot.webp", width: 1792, height: 1024, alt: "QuizBot, le robot du Quiz Chatnet", card: { src: "/games/quizbot-card.webp", width: 1792, height: 660 } } },
   { id: "motus", name: "Motus", channel: "#motus", kind: "Jeu de mots", mark: "Aa", tagline: "Retrouvez le mot caché, lettre après lettre.", description: "Une manche de six lettres dans le salon #motus : observez les indices, proposez un mot et grimpez au classement.", href: "/jeux/motus", implemented: true, artwork: { src: "/games/motusbot-v2.webp", width: 1672, height: 941, alt: "MotusBot, robot bleu souriant tenant une enseigne MOTUS lumineuse", card: { src: "/games/motusbot-card-v2.webp", width: 1672, height: 770 } } },
-  { id: "defis", name: "Défis du jour", channel: "#defis", kind: "Défis", mark: "↗", tagline: "Un rendez-vous quotidien à relever ensemble.", description: "Un nouveau défi chaque jour pour se retrouver autour d’un même objectif. Les Défis du jour sont en préparation : ils ne sont pas encore jouables.", href: null, implemented: false },
+  { id: "defis", name: "Défis du jour", channel: "#defis", kind: "Énigmes & logique", mark: "↗", tagline: "Un défi chaque jour, une réponse en privé.", description: "Énigmes, logique, anagrammes et mots mystères dans #defis : répondez en conversation privée avec DefisBot et grimpez aux classements du jour, du mois et de tous les temps.", href: "/jeux/defis", implemented: true, artwork: { src: "/games/defisbot.webp", width: 1200, height: 1200, alt: "DefisBot, robot blanc et bleu souriant qui brandit un trophée doré", card: { src: "/games/defisbot-card.webp", width: 1600, height: 740 } } },
 ];
 
 export function getGameInfo(id: GameId): GameInfo {

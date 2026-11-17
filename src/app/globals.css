@@ -707,3 +707,19 @@ body:has(.player-dialog[open]) { overflow: hidden; }
 @media (max-width: 920px) { .games-hero-inner, .quiz-join-grid, .quiz-rules-grid { grid-template-columns: minmax(0, 1fr); }.games-hero-inner { gap: 34px; }.quiz-hero-art { justify-self: start; }.game-tile-grid, .games-steps { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 700px) { .games-hero { padding: 58px 0; }.games-hero-compact { padding: 32px 0 48px; }.quiz-hero-art { max-width: 340px; border-radius: 18px; }.quiz-hero-art img { aspect-ratio: 16 / 10; object-position: 50% 30%; }.rankings-upcoming { grid-template-columns: minmax(0, 1fr); }.leaderboard th, .leaderboard td { padding: 12px 10px; }.leaderboard { font-size: 13px; }.player-avatar { width: 64px; height: 64px; border-radius: 18px; font-size: 28px; }.quiz-access { padding: 22px; }.game-tile { --tile-pad: 22px; } }
 @media (max-width: 470px) { .games-hero-actions .button { width: 100%; }.leaderboard th, .leaderboard td { padding: 11px 6px; }.leaderboard thead th { font-size: 10px; letter-spacing: .02em; }.leaderboard-rank { min-width: 28px; height: 28px; padding: 0 6px; }.player-head { align-items: flex-start; gap: 16px; }.player-stats dd { font-size: 20px; }.quiz-table th, .quiz-table td { padding: 12px; }.quiz-rules-grid .quiz-table td, .quiz-commands th { white-space: normal; }.leaderboard-player { gap: 7px; }.player-thumb:not(.player-thumb-large) { width: 26px; height: 26px; font-size: 12px; }.player-dialog-panel { padding: 22px 18px; }.player-dialog-actions .button { width: 100%; } }
+
+/* Défis du jour (/jeux/defis) */
+.defis-current { display: grid; gap: 16px; }
+.defis-challenge { padding: 28px; border: 1px solid var(--border); border-radius: 18px; background: var(--card); }
+.defis-challenge h3 { margin: 10px 0 12px; font-size: 22px; letter-spacing: -.02em; }
+.defis-challenge-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; color: var(--muted); font-size: 13px; }
+.defis-challenge-prompt { margin: 0; padding: 18px 20px; border-left: 4px solid var(--accent-text); border-radius: 12px; background: var(--surface); font-size: 18px; line-height: 1.6; overflow-wrap: anywhere; }
+.defis-challenge-foot { margin: 14px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.defis-availability { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.defis-availability svg { flex-shrink: 0; margin-top: 2px; }
+.defis-rankings { display: grid; gap: 28px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.defis-ranking { min-width: 0; }
+.defis-ranking > h3 { margin: 0 0 12px; font-size: 18px; }
+.defis-ranking .game-notice { padding: 28px 18px; }
+@media (max-width: 1100px) { .defis-rankings { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { .defis-challenge { padding: 20px; } .defis-challenge-prompt { font-size: 16px; padding: 14px 16px; } }
