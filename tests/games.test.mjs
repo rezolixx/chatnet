@@ -475,3 +475,13 @@ test("/jeux/defis when DefisBot is offline or the Game API is down: never online
   assert.match(downHtml, /ne peut pas être vérifié/);
   assert.match(downHtml, /Classement momentanément indisponible/);
 });
+
+test("/jeux/defis: a failed challenge lookup is never shown as \"no challenge\"", async () => {
+  const { modules } = gameApi({ ...defisRoutes(defisStatus("available")), "/api/defis/current": () => json({}, 500) }, { GAME_API_BASE_URL: BASE });
+  const html = markup(withoutJoinForm(await modules.load("app/jeux/defis/page.tsx").default(), modules.load("components/chat/ChatJoinForm.tsx").ChatJoinForm));
+  assert.match(html, /Défi momentanément introuvable/);
+  assert.doesNotMatch(html, /Aucun défi ouvert en ce moment/);
+  const ok = gameApi(defisRoutes(defisStatus("available")), { GAME_API_BASE_URL: BASE });
+  const empty = markup(withoutJoinForm(await ok.modules.load("app/jeux/defis/page.tsx").default(), ok.modules.load("components/chat/ChatJoinForm.tsx").ChatJoinForm));
+  assert.match(empty, /Aucun défi ouvert en ce moment/);
+});

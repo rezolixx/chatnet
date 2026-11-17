@@ -114,7 +114,10 @@ export default async function DefisPage() {
             <h3 id="defis-current-title">{challenge.title ?? "Défi du jour"}</h3>
             <blockquote className="defis-challenge-prompt">{challenge.prompt}</blockquote>
             <p className="defis-challenge-foot">{challenge.solves === 0 ? "Personne ne l’a encore résolu." : `${formatCount(challenge.solves)} joueur${challenge.solves > 1 ? "s l’ont" : " l’a"} déjà résolu.`} Répondez en privé à DefisBot, jamais dans le salon.</p>
-          </article> : <div className="game-notice" id="defis-current-title"><h3>{live ? "Aucun défi ouvert en ce moment" : "Défi indisponible pour le moment"}</h3><p>{nextOpensAt ? `Prochain défi : ${when(nextOpensAt)} (heure de Tunis).` : availabilityText(statusResult)}</p></div>}
+          </article> : current.status === "unavailable"
+            // The lookup failed: say so, never "no challenge" while one may be open.
+            ? <div className="game-notice game-notice-unavailable" role="alert"><h3 id="defis-current-title">Défi momentanément introuvable</h3><p>Le défi en cours ne peut pas être affiché pour le moment. Ouvrez #defis et tapez <code>!defi</code> pour le lire, ou réessayez dans quelques instants.</p></div>
+            : <div className="game-notice"><h3 id="defis-current-title">{live && current.status === "known" ? "Aucun défi ouvert en ce moment" : "Défi indisponible pour le moment"}</h3><p>{nextOpensAt ? `Prochain défi : ${when(nextOpensAt)} (heure de Tunis).` : availabilityText(statusResult)}</p></div>}
           <p className="defis-availability" role="note"><Icon name="shield" size={18} /> {availabilityText(statusResult)}</p>
         </div>
       </div>
